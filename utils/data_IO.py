@@ -55,11 +55,12 @@ def read_int_from_file_pointer(file_pointer, flag_str):
     return data
 
 
-def open_file(file_name):
+def open_file(file_name, open_mode="r"):
     try:
-        file_pointer = open(file_name, "r")
+        file_pointer = open(file_name, open_mode)
         return file_pointer
     except IOError:
         print("Error: cannot open input file", file_name)
         sys.exit(1)
+
 
