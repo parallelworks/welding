@@ -4,3 +4,5 @@
 *.kml
 /box_mesh.unv
 /.project
+/tmp
+/outputs
