@@ -4,34 +4,30 @@ type file;
 
 # ------ INPUT / OUTPUT DEFINITIONS -------#
 
-string geomFileName = arg("geomFileName", "box.step");
-string meshFileName = arg("meshFileName", "box_mesh.unv");
+string geomFileName = arg("geomFile", "box.step");
+string meshFileName = arg("meshFile", "box_mesh.unv");
+string geomMeshParamsFileName = arg("geomMeshParamsFile", "geomMeshParams.in");
 
 file fgeom <strcat("inputs/",geomFileName)>;
+file fgeomMeshParams  <strcat("inputs/",geomMeshParamsFileName)>;
+
+file meshScript <"utils/boxMesh_inputFile_noArgs.py">;
+file pythonLib <"utils/data_IO.py">;  # Python functions for reading data from files
+
 file fmesh <strcat("outputs/",meshFileName)>;
-file meshScript <"utils/boxMesh_args.py">;
-
-float Length  = parseFloat(arg("Length", "10.0"));
-float Width  = parseFloat(arg("Width", "10.0"));
-float Height  = parseFloat(arg("Height", "1.0"));
-float meshScale  = parseFloat(arg("meshScale", "1.0"));
-float highResWidth = parseFloat(arg("highResWidth","3.0"));
-
+file salomeErr <"outputs/salome.err">;                        
 
 # -- APP DEFINITIONS
 
-app (file fmesh) meshBox (file meshScript, float Length, float Width, float Height, float highResWidth, float meshScale, file fgeom) {
+app (file fmesh, file ferr) meshBox (file meshScript, file fgeom, file pythonLib, file fgeomMeshParams ) {
     # Example of running Python mesh script by Salome :
-    # salome shell   boxMesh_args.py args:10,10,1,inputs/box.step,3,1,outputs/box_mesh.unv
-	salome "start" "-t" "-w 1" filename(meshScript)  strcat("args:", Length, ",",
-                                                                     Width, ",", 
-                                                                     Height, ",", 
-                                                                     filename(fgeom), ",",
-                                                                     highResWidth, ",",
-                                                                     meshScale, ",",
-                                                                     filename(fmesh));
+    # salome start -t -w 1 boxMesh_inputFile.py args:inputs/geomMeshParams.in,inputs/box.step,outputs/box_mesh.unv 
+    salome "start" "-t" "-w 1" filename(meshScript) stderr=filename(ferr) 
+                               strcat("args:",filename(fgeomMeshParams), ",", filename(fgeom), ",", filename(fmesh));
 }
 
 #----------------workflow---------#
 
-fmesh = meshBox(meshScript, Length, Width, Height, highResWidth, meshScale, fgeom);
+
+
+(fmesh, salomeErr) = meshBox(meshScript, fgeom, pythonLib, fgeomMeshParams );
