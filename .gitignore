@@ -1,0 +1,6 @@
+*~
+/run*/
+/swiftwork/
+*.kml
+/box_mesh.unv
+/.project
