@@ -31,9 +31,9 @@ else:
     meshScale = 1.
 
 if len(sys.argv) >= 8:
-    meshFileName = float(sys.argv[7])
+    meshFileName = sys.argv[7]
 else:
-    meshFileName = "box_mesh.unv"
+    meshFileName = "outputs/box_mesh.unv"
 
 salome.salome_init()
 theStudy = salome.myStudy
