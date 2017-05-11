@@ -5,7 +5,7 @@ type file;
 # ------ INPUT / OUTPUT DEFINITIONS -------#
 
 string geomFileName = arg("geomFile", "box.step");
-string meshFileName = arg("meshFile", "box_mesh");
+string meshFileName = arg("meshFile", "box");
 string simParamsFileName = arg("simParamsFile", "boxSimFile");
 string sweepParamsFileName = arg("sweepParamFile", "sweepParams.run");
 string outDir = "outputs/";
@@ -18,7 +18,7 @@ file fsweepParams		  <strcat("inputs/",sweepParamsFileName)>;
 file meshScript           <"utils/boxMesh_inputFile.py">;
 file utils[] 		      <filesys_mapper;location="utils">; #, suffix=".py">;
 file convertScript        <"utils/unv2abaqus.py">;
-file writeCGXScript       <"utils/writeCGXfbdFile.py">;
+file writeFbdScript       <"utils/writeCGXfbdFile.py">;
 
 # ------ APP DEFINITIONS --------------------#
 
@@ -52,11 +52,18 @@ app (file fmeshInp, file ferr) convertMesh (file convertScript, file fmesh, file
     python2 filename(convertScript) filename(fmesh) meshInpName stderr=filename(ferr);
 } 
 
-# Generate a CGX geometry command file
+# Generate a cgx geometry command (fbd) file
 # python writeCGXfbdFile <cgxFile.fbd> <inputMeshFile> <outputMeshFile>
-app (file fcgxFile, file ferr) writeCGXFile (file writeCGXScript, file fmeshInp, file utils[], string mshFileAddress){
-    python filename(writeCGXScript) filename(fcgxFile) filename(fmeshInp) mshFileAddress stderr=filename(ferr);
+app (file ffbd, file ferr) writeFbdFile (file writeFbdScript, file fmeshInp, file utils[], string mshFileAddress){
+    python filename(writeFbdScript) filename(ffbd) filename(fmeshInp) mshFileAddress stderr=filename(ferr);
 }
+
+# convert abq mesh to ccx 
+#cgx -bg prepmesh.fbd
+app (file fmsh4ccx, file fOut, file ferr) convertAbq2Msh (file ffbd, file fmeshInp){
+    "cgx_2.12" "-bg" filename(ffbd) stderr=filename(ferr) stdout= filename(fOut);
+}
+
 
 #----------------workflow-------------------#
 
@@ -71,7 +78,6 @@ simFileParams = writeSimParamFiles(caseFile, utils, simFilesDir, simParamsFileNa
 file[] fmeshes;
 file[] fAbqMeshes;
 foreach fsimParams,i in simFileParams{
-
    	file fmesh  	   <strcat(outDir, meshFileName,i,".unv")>;
     file salomeErr     <strcat(errorsDir, "salome",i,".err")>;                          
     (fmesh, salomeErr) = makeMesh(meshScript, fgeom, utils, fsimParams);
@@ -84,12 +90,19 @@ foreach fsimParams,i in simFileParams{
     fAbqMeshes[i] = fAbqMesh;
 }
 
-file[] fcgxFiles;
+file[] fbdFiles;
+file[] fmsh4ccxFiles;
 foreach fAbqMesh,i in fAbqMeshes{
-    file fcgxFile         <strcat(outCaseDir, i,"/premesh.fbd")>;
-    file fcgxWriteErr     <strcat(outCaseDir, i,"/fcgxWriteErr.err")>;
-    string mshFileAddress = strcat(outCaseDir, i, "/fcgxWriter.err");
-    (fcgxFile, fcgxWriteErr) = writeCGXFile(writeCGXScript, fAbqMesh, utils, mshFileAddress);
-    fcgxFiles[i] = fcgxFile;
+    file ffbd              <strcat(outCaseDir, i,"/premesh.fbd")>;
+    file fcgxWriteErr      <strcat(outCaseDir, i,"/fcgxWrite.err")>;
+    string mshFileAddress = strcat(outCaseDir, i, "/", meshFileName, ".msh");
+    (ffbd, fcgxWriteErr) = writeFbdFile(writeFbdScript, fAbqMesh, utils, mshFileAddress);
+    fbdFiles[i] = ffbd;
+
+    file fmsh4ccx <mshFileAddress>;
+    file fOut           <strcat(outCaseDir, i,"/fcgxPremesh.out")>;
+    file fcgxErr        <strcat(outCaseDir, i,"/fcgxPremesh.err")>;
+    (fmsh4ccx, fOut, fcgxErr) = convertAbq2Msh(fbdFiles[i], fAbqMeshes[i]);
+    fmsh4ccxFiles[i] = fmsh4ccx;
 }
 
