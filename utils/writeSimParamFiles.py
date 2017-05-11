@@ -15,7 +15,7 @@ simFileRootName = sys.argv[3]
 
 
 cl_fp = data_IO.open_file(caseListFileName)
-for i, line in enumerate(cl_fp, 1):
+for i, line in enumerate(cl_fp):
     line = line.replace(",", "\n")
     line = line.replace("=", "  ")
     simFileAddress = simFilesDir + "/" + simFileRootName + str(i) + ".in"

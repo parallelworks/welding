@@ -5,18 +5,15 @@ type file;
 # ------ INPUT / OUTPUT DEFINITIONS -------#
 
 string geomFileName = arg("geomFile", "box.step");
-string meshFileName = arg("meshFile", "box_mesh.unv");
-string geomMeshParamsFileName = arg("geomMeshParamsFile", "geomMeshParams.in");
+string meshFileName = arg("meshFile", "box_mesh");
+string simParamsFileName = arg("simParamsFile", "boxSimFile");
+string sweepParamsFileName = arg("sweepParamFile", "sweepParams.run");
 
-file fgeom        <strcat("inputs/",geomFileName)>;
-file fsimParams   <strcat("inputs/",geomMeshParamsFileName)>;
-file fsweepParams		  <"inputs/sweepParams.run">;
+file fgeom                <strcat("inputs/",geomFileName)>;
+file fsweepParams		  <strcat("inputs/",sweepParamsFileName)>;
 
 file meshScript <"utils/boxMesh_inputFile.py">;
 file utils[] 		<filesys_mapper;location="utils">;
-
-file fmesh <strcat("outputs/",meshFileName)>;
-file salomeErr <"outputs/salome.err">;                        
 
 # ------ APP DEFINITIONS --------------------#
 
@@ -43,8 +40,16 @@ app (file fmesh, file ferr) makeMesh (file meshScript, file fgeom, file utils[],
 file caseFile 	<"inputs/cases.list">;
 caseFile = expandSweep(fsweepParams, utils);
 
-string simFilesDir = "inputs/simFiles/";
+string simFilesDir = "inputs/simParamFiles/";
 file[] simFileParams <filesys_mapper;location=simFilesDir>;
-simFileParams = writeSimParamFiles(caseFile, utils, simFilesDir, "simFiles");
+simFileParams = writeSimParamFiles(caseFile, utils, simFilesDir, simParamsFileName);
+
+file[] fmeshes;
+foreach fsimParams,i in simFileParams{
+   	file fmesh  	<strcat("outputs/", meshFileName,i,".unv")>;
+    file salomeErr  <strcat("outputs/salome",i,".err")>;                          
+    (fmesh, salomeErr) = makeMesh(meshScript, fgeom, utils, fsimParams);
+    fmeshes[i] = fmesh;
+}
 
 
