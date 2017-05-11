@@ -74,15 +74,16 @@ string simFilesDir = "inputs/simParamFiles/";
 file[] simFileParams <filesys_mapper;location=simFilesDir>;
 simFileParams = writeSimParamFiles(caseFile, utils, simFilesDir, simParamsFileName);
 
-# Should I split into two loops? 
 file[] fmeshes;
-file[] fAbqMeshes;
 foreach fsimParams,i in simFileParams{
    	file fmesh  	   <strcat(outDir, meshFileName,i,".unv")>;
     file salomeErr     <strcat(errorsDir, "salome",i,".err")>;                          
     (fmesh, salomeErr) = makeMesh(meshScript, fgeom, utils, fsimParams);
     fmeshes[i] = fmesh;
+}
 
+file[] fAbqMeshes;
+foreach fmesh,i in fmeshes{
     string AbqMeshName = strcat(outDir, meshFileName,i);
     file fAbqMesh      <strcat(AbqMeshName, ".inp")>;
     file meshConvErr   <strcat(errorsDir, "meshConv", i, ".err")>;                          
@@ -91,18 +92,21 @@ foreach fsimParams,i in simFileParams{
 }
 
 file[] fbdFiles;
-file[] fmsh4ccxFiles;
+string[] mshFileAddresses;
 foreach fAbqMesh,i in fAbqMeshes{
     file ffbd              <strcat(outCaseDir, i,"/premesh.fbd")>;
     file fcgxWriteErr      <strcat(outCaseDir, i,"/fcgxWrite.err")>;
-    string mshFileAddress = strcat(outCaseDir, i, "/", meshFileName, ".msh");
-    (ffbd, fcgxWriteErr) = writeFbdFile(writeFbdScript, fAbqMesh, utils, mshFileAddress);
+     mshFileAddresses[i] = strcat(outCaseDir, i, "/", meshFileName, ".msh");
+    (ffbd, fcgxWriteErr) = writeFbdFile(writeFbdScript, fAbqMesh, utils, mshFileAddresses[i]);
     fbdFiles[i] = ffbd;
+}
 
-    file fmsh4ccx <mshFileAddress>;
+file[] fmsh4ccxFiles;
+foreach ffbd,i in fbdFiles{
+    file fmsh4ccx <mshFileAddresses[i]>;
     file fOut           <strcat(outCaseDir, i,"/fcgxPremesh.out")>;
     file fcgxErr        <strcat(outCaseDir, i,"/fcgxPremesh.err")>;
-    (fmsh4ccx, fOut, fcgxErr) = convertAbq2Msh(fbdFiles[i], fAbqMeshes[i]);
+    (fmsh4ccx, fOut, fcgxErr) = convertAbq2Msh(ffbd, fAbqMeshes[i]);
     fmsh4ccxFiles[i] = fmsh4ccx;
 }
 
