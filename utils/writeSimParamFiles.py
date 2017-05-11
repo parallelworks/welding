@@ -21,6 +21,7 @@ for i, line in enumerate(cl_fp):
     simFileAddress = simFilesDir + "/" + simFileRootName + str(i) + ".in"
     simf = data_IO.open_file(simFileAddress, "w")
     simf.write(line)
+    simf.write("\n")
     simf.close()
 
 cl_fp.close()
