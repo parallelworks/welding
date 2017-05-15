@@ -16,7 +16,7 @@ string outCaseDir = "outputs/case";
 file fgeom                <strcat("inputs/",geomFileName)>;
 file fsweepParams		  <strcat("inputs/",sweepParamsFileName)>;
 
-file meshScript           <"utils/makeHighResBoxWithMesh_inputFile.py">;
+file meshScript           <"utils/boxMesh_inputFile.py">;
 
 file utils[] 		      <filesys_mapper;location="utils", suffix=".py">;
 
@@ -27,11 +27,11 @@ file writeFbdScript       <"utils/writeCGXfbdFile.py">;
 file cgxBin                 <"utils/cgx_2.12">;
 file cgxExecScript          <"utils/runCgxBinary.sh">;
 
-file writeFortranFileScript <"utils/writeDFluxFile.py">;
-
-string ccxFolderRootName =        "ccx-212";
-file ccxSrc                <strcat("utils/", ccxFolderRootName, ".tar.gz")>; 
-file compileScript     <"utils/compileCcx2.sh">;
+file ccxBin               <strcat(ccxFolder,"/src/","ccx_2.12")>;
+file ccxComplieScript     <"utils/compileCcx.sh">;
+string ccxFolder =        "utils/ccx-212";
+file ccxSrc                 <strcat(ccxFolder,".tar.gz")>; 
+file fluxRoutine            <"utils/dflux.f">;
 
 file getCcxInpScript        <"utils/writeCCXinpFile.py">;
 file fgenericInp            <"inputs/solve.inp">;
@@ -57,14 +57,9 @@ app (file[] simFileParams) writeSimParamFiles (file cases, file[] utils, string 
 # Example of running Python mesh script by Salome :
 #    salome start -t -w 1 boxMesh_inputFile.py args:inputs/geomMeshParams.in,inputs/box.step,outputs/box_mesh.unv 
 #
-app (file fmesh, file ferr) makeMeshFromStep (file meshScript, file fgeom, file utils[], file fsimParams ) {
+app (file fmesh, file ferr) makeMesh (file meshScript, file fgeom, file utils[], file fsimParams ) {
     salome "start" "-t" "-w 1" filename(meshScript) stderr=filename(ferr) strcat("args:",
            filename(fsimParams), ",", filename(fgeom), ",", filename(fmesh));
-}
-
-app (file fmesh, file ferr) makeMesh (file meshScript, file utils[], file fsimParams ) {
-    salome "start" "-t" "-w 1" filename(meshScript) stderr=filename(ferr) strcat("args:",
-           filename(fsimParams), ",", filename(fmesh));
 }
 
 (string nameNoSuffix) trimSuffix (string nameWithSuffix){
@@ -88,16 +83,9 @@ app (file fmsh4ccx, file fOut, file ferr) convertAbq2Msh (file cgxExecScript, fi
 	bash filename(cgxExecScript) filename(cgxBin) filename(ffbd) stderr = filename(ferr) stdout = filename(fOut);
 }
 
-#write fortran flux files
-#python pythonScripts_all/writeDFluxFile.py dfluxTest.f inputs/simParamFiles/boxSimFile0.in
-app (file fluxRoutine) writeFortranFluxRoutine (file writeFortranFileScript, file utils[], file fsimParams){
-    python filename(writeFortranFileScript) filename(fluxRoutine) filename(fsimParams);
+app (file ccxBin) compileCcx (file complieScript, string ccxFolder, file ccxSrc, file fluxRoutine) {
+    bash filename(complieScript) ccxFolder filename(fluxRoutine) "utils/" ;
 }
-
-app (file ccxBin) compileCcx (file compileScript, string outDir, string ccxTGZRootName, file ccxSrc, file fluxRoutine) {
-    bash filename(compileScript) filename(ccxSrc) ccxTGZRootName filename(fluxRoutine) outDir;
-}
-
 
 app (file fccxInp) getCcxInp (file getCcxInpScript, file fgenericInp, file fmsh4ccx, file utils[]){
 	python filename(getCcxInpScript) filename(fgenericInp) filename(fmsh4ccx) filename(fccxInp);
@@ -125,7 +113,7 @@ file[] fmeshes;
 foreach fsimParams,i in simFileParams{
    	file fmesh  	   <strcat(outDir, meshFileName,i,".unv")>;
     file salomeErr     <strcat(errorsDir, "salome",i,".err")>;                          
-    (fmesh, salomeErr) = makeMesh(meshScript, utils, fsimParams);
+    (fmesh, salomeErr) = makeMesh(meshScript, fgeom, utils, fsimParams);
     fmeshes[i] = fmesh;
 }
 
@@ -134,6 +122,7 @@ foreach fmesh,i in fmeshes{
     string AbqMeshName = strcat(outDir, meshFileName,i);
     file fAbqMesh      <strcat(AbqMeshName, ".inp")>;
     file meshConvErr   <strcat(errorsDir, "meshConv", i, ".err")>;                          
+    # (fAbqMesh, meshConvErr) = convertMesh(convertScript, fmesh, utils, trimSuffix(filename(fAbqMesh))); doesn't work: Finding dependency loops...
     (fAbqMesh, meshConvErr) = convertMesh(convertScript, fmesh, utils, AbqMeshName);
     fAbqMeshes[i] = fAbqMesh;
 }
@@ -152,32 +141,21 @@ foreach fAbqMesh,i in fAbqMeshes{
 
 file[] fmsh4ccxFiles;
 foreach ffbd,i in fbdFiles{
-    file fmsh4ccx       <mshFileAddresses[i]>;
+    file fmsh4ccx <mshFileAddresses[i]>;
     file fOut           <strcat(outCaseDirs[i], "fcgxPremesh.out")>;
     file fcgxErr        <strcat(outCaseDirs[i], "fcgxPremesh.err")>;
     (fmsh4ccx, fOut, fcgxErr) = convertAbq2Msh(cgxExecScript, cgxBin, ffbd, fAbqMeshes[i]);
     fmsh4ccxFiles[i] = fmsh4ccx;
 }
 
-file[] ffluxRoutines;
-foreach fsimParams,i in simFileParams{
-   	file fluxRoutine 	   <strcat(outCaseDirs[i], "dflux.f")>;
-    fluxRoutine =  writeFortranFluxRoutine(writeFortranFileScript, utils,  fsimParams);     
-    ffluxRoutines[i] = fluxRoutine;
-}
-
-file[] ccxBinaries;
-foreach fluxRoutine, i in ffluxRoutines{
-        file ccxBin               <strcat(outCaseDirs[i], ccxFolderRootName, "/src/", "ccx_2.12")>;
-        ccxBin = compileCcx(compileScript, outCaseDirs[i], ccxFolderRootName, ccxSrc, ffluxRoutines[i]);
-        ccxBinaries[i] = ccxBin;
-}
+# Compile ccx with BC routine
+ccxBin = compileCcx(ccxComplieScript, ccxFolder, ccxSrc, fluxRoutine);
 
 # Generate ccx input (.inp) files
 file[] fCcxInpFiles;
 foreach fmsh4ccx, i in fmsh4ccxFiles{
-	string caseName = strcat(outCaseDirs[i], "solve");
 	file finp       <strcat(caseName,".inp")>;
+	string caseName = strcat(outCaseDirs[i], "solve");
 	finp = getCcxInp(getCcxInpScript, fgenericInp, fmsh4ccx, utils);
 	fCcxInpFiles[i] = finp;
 }
@@ -185,7 +163,7 @@ foreach fmsh4ccx, i in fmsh4ccxFiles{
 # Run ccx for each case
 
 file[] solFiles;
-foreach fsimParams,i in simFileParams{
+foreach fmsh4ccx, i in fmsh4ccxFiles{
 	string caseName = strcat(outCaseDirs[i], "solve");
 	file fsol         <strcat(caseName,".frd")>;
 	file fsta         <strcat(caseName,".sta")>;
@@ -194,7 +172,7 @@ foreach fsimParams,i in simFileParams{
 	file fccxErr      <strcat(outCaseDirs[i], "ccx.err")>;
 	file fccxOut      <strcat(outCaseDirs[i], "ccx.out")>;
 	(fsol, fsta, fcvg, fdat, fccxOut, fccxErr) = 
-		  runCcx(ccxExecScript, ccxBinaries[i], fmsh4ccxFiles[i], caseName, fCcxInpFiles[i]);
+		  runCcx(ccxExecScript, ccxBin, fmsh4ccxFiles[i], caseName, fCcxInpFiles[i]);
 	solFiles[i] = fsol;
 }
 

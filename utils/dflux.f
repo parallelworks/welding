@@ -35,7 +35,8 @@
 	  z0=0
 	  
 	  !  Path 1 Linear moving heat source 
-        vx = 10   ! speed of welding in x direction is 2m/sec
+      ! speed of welding in x direction is 2m/sec
+        vx = 10
         vy = 0.00
         vz = 0.00
       	  
@@ -47,7 +48,8 @@
 	  Yf=coords(2)-yarc	! coordinate of position y 
 	  Zf=coords(3)-zarc	! coordinate of position z
       
-      Q=10000.		  ! heat flux core : current220*voltage14*efficiency0.7
+      ! heat flux core : current220*voltage14*efficiency0.7
+      Q=10000.
       
       heat=1.86632*Q/(a*b*c)
       shapef=EXP(-3*(Xf)**2./a**2.-3*(Yf)**2./b**2.-3*(Zf)**2./c**2.)
