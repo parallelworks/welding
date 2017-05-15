@@ -16,9 +16,12 @@ file fgeom                <strcat("inputs/",geomFileName)>;
 file fsweepParams		  <strcat("inputs/",sweepParamsFileName)>;
 
 file meshScript           <"utils/boxMesh_inputFile.py">;
-file utils[] 		      <filesys_mapper;location="utils">; #, suffix=".py">;
+file utils[] 		      <filesys_mapper;location="utils", suffix=".py">;
 file convertScript        <"utils/unv2abaqus.py">;
 file writeFbdScript       <"utils/writeCGXfbdFile.py">;
+
+file cgxBin                 <"utils/cgx_2.12">;
+file cgxExecScript          <"utils/runCgxBinary.sh">;
 
 # ------ APP DEFINITIONS --------------------#
 
@@ -60,8 +63,9 @@ app (file ffbd, file ferr) writeFbdFile (file writeFbdScript, file fmeshInp, fil
 
 # convert abq mesh to ccx 
 #cgx -bg prepmesh.fbd
-app (file fmsh4ccx, file fOut, file ferr) convertAbq2Msh (file ffbd, file fmeshInp){
-    "cgx_2.12" "-bg" filename(ffbd) stderr=filename(ferr) stdout= filename(fOut);
+app (file fmsh4ccx, file fOut, file ferr) convertAbq2Msh (file cgxExecScript, file cgxBin, file ffbd, file fmeshInp){
+#    "cgx_2.12" "-bg" filename(ffbd) stderr=filename(ferr) stdout= filename(fOut);
+	bash filename(cgxExecScript) filename(cgxBin) filename(ffbd) stderr = filename(ferr) stdout = filename(fOut);
 }
 
 
@@ -106,7 +110,7 @@ foreach ffbd,i in fbdFiles{
     file fmsh4ccx <mshFileAddresses[i]>;
     file fOut           <strcat(outCaseDir, i,"/fcgxPremesh.out")>;
     file fcgxErr        <strcat(outCaseDir, i,"/fcgxPremesh.err")>;
-    (fmsh4ccx, fOut, fcgxErr) = convertAbq2Msh(ffbd, fAbqMeshes[i]);
+    (fmsh4ccx, fOut, fcgxErr) = convertAbq2Msh(cgxExecScript, cgxBin, ffbd, fAbqMeshes[i]);
     fmsh4ccxFiles[i] = fmsh4ccx;
 }
 

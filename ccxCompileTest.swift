@@ -8,7 +8,6 @@ string geomFileName = arg("geomFile", "box.step");
 string meshFileName = arg("meshFile", "box");
 string simParamsFileName = arg("simParamsFile", "boxSimFile");
 string sweepParamsFileName = arg("sweepParamFile", "sweepParams.run");
-
 string outDir = "outputs/";
 string errorsDir = strcat(outDir, "errorFiles/");
 string outCaseDir = "outputs/case";
@@ -17,28 +16,9 @@ file fgeom                <strcat("inputs/",geomFileName)>;
 file fsweepParams		  <strcat("inputs/",sweepParamsFileName)>;
 
 file meshScript           <"utils/boxMesh_inputFile.py">;
-
-file utils[] 		      <filesys_mapper;location="utils", suffix=".py">;
-
+file utils[] 		      <filesys_mapper;location="utils">; #, suffix=".py">;
 file convertScript        <"utils/unv2abaqus.py">;
-
 file writeFbdScript       <"utils/writeCGXfbdFile.py">;
-
-file cgxBin                 <"utils/cgx_2.12">;
-file cgxExecScript          <"utils/runCgxBinary.sh">;
-
-file ccxBin               <strcat(ccxFolder,"/src/","ccx_2.12")>;
-file ccxComplieScript     <"utils/compileCcx.sh">;
-string ccxFolder =        "utils/ccx-212";
-file ccxSrc                 <strcat(ccxFolder,".tar.gz")>; 
-file fluxRoutine            <"utils/dflux.f">;
-
-file getCcxInpScript        <"utils/writeCCXinpFile.py">;
-file fgenericInp            <"inputs/solve.inp">;
-
-file ccxExecScript          <"utils/runCcxBinary.sh">;
-
-file makeAnimScript         <"utils/genAnimationInDir.sh">;
 
 # ------ APP DEFINITIONS --------------------#
 
@@ -79,26 +59,11 @@ app (file ffbd, file ferr) writeFbdFile (file writeFbdScript, file fmeshInp, fil
 }
 
 # convert abq mesh to ccx 
-app (file fmsh4ccx, file fOut, file ferr) convertAbq2Msh (file cgxExecScript, file cgxBin, file ffbd, file fmeshInp){
-	bash filename(cgxExecScript) filename(cgxBin) filename(ffbd) stderr = filename(ferr) stdout = filename(fOut);
+#cgx -bg prepmesh.fbd
+app (file fmsh4ccx, file fOut, file ferr) convertAbq2Msh (file ffbd, file fmeshInp){
+    "cgx_2.12" "-bg" filename(ffbd) stderr=filename(ferr) stdout= filename(fOut);
 }
 
-app (file ccxBin) compileCcx (file complieScript, string ccxFolder, file ccxSrc, file fluxRoutine) {
-    bash filename(complieScript) ccxFolder filename(fluxRoutine) "utils/" ;
-}
-
-app (file fccxInp) getCcxInp (file getCcxInpScript, file fgenericInp, file fmsh4ccx, file utils[]){
-	python filename(getCcxInpScript) filename(fgenericInp) filename(fmsh4ccx) filename(fccxInp);
-}
-
-app (file fsol, file fsta, file fcvg, file fdat, file fOut, file ferr) 
-	runCcx (file ccxExecScript, file ccxBin, file fmsh4ccx, string caseName, file finp){
-	bash filename(ccxExecScript) filename(ccxBin)  caseName stderr=filename(ferr) stdout=filename(fOut);
-}
-
-app (file fanim, file[] fpngs, file fOut, file ferr) makeAnimation (file makeAnimScript, file fsol, string caseDir){
-	bash filename(makeAnimScript) caseDir stderr=filename(ferr) stdout=filename(fOut);
-}
 
 #----------------workflow-------------------#
 
@@ -122,19 +87,16 @@ foreach fmesh,i in fmeshes{
     string AbqMeshName = strcat(outDir, meshFileName,i);
     file fAbqMesh      <strcat(AbqMeshName, ".inp")>;
     file meshConvErr   <strcat(errorsDir, "meshConv", i, ".err")>;                          
-    # (fAbqMesh, meshConvErr) = convertMesh(convertScript, fmesh, utils, trimSuffix(filename(fAbqMesh))); doesn't work: Finding dependency loops...
     (fAbqMesh, meshConvErr) = convertMesh(convertScript, fmesh, utils, AbqMeshName);
     fAbqMeshes[i] = fAbqMesh;
 }
 
 file[] fbdFiles;
 string[] mshFileAddresses;
-string[] outCaseDirs;
 foreach fAbqMesh,i in fAbqMeshes{
-	outCaseDirs[i] = strcat(outCaseDir, i,"/");
-    file ffbd              <strcat(outCaseDirs[i], "premesh.fbd")>;
-    file fcgxWriteErr      <strcat(outCaseDirs[i], "fcgxWrite.err")>;
-    mshFileAddresses[i] = strcat(outCaseDirs[i], meshFileName, ".msh");
+    file ffbd              <strcat(outCaseDir, i,"/premesh.fbd")>;
+    file fcgxWriteErr      <strcat(outCaseDir, i,"/fcgxWrite.err")>;
+     mshFileAddresses[i] = strcat(outCaseDir, i, "/", meshFileName, ".msh");
     (ffbd, fcgxWriteErr) = writeFbdFile(writeFbdScript, fAbqMesh, utils, mshFileAddresses[i]);
     fbdFiles[i] = ffbd;
 }
@@ -142,49 +104,9 @@ foreach fAbqMesh,i in fAbqMeshes{
 file[] fmsh4ccxFiles;
 foreach ffbd,i in fbdFiles{
     file fmsh4ccx <mshFileAddresses[i]>;
-    file fOut           <strcat(outCaseDirs[i], "fcgxPremesh.out")>;
-    file fcgxErr        <strcat(outCaseDirs[i], "fcgxPremesh.err")>;
-    (fmsh4ccx, fOut, fcgxErr) = convertAbq2Msh(cgxExecScript, cgxBin, ffbd, fAbqMeshes[i]);
+    file fOut           <strcat(outCaseDir, i,"/fcgxPremesh.out")>;
+    file fcgxErr        <strcat(outCaseDir, i,"/fcgxPremesh.err")>;
+    (fmsh4ccx, fOut, fcgxErr) = convertAbq2Msh(ffbd, fAbqMeshes[i]);
     fmsh4ccxFiles[i] = fmsh4ccx;
-}
-
-# Compile ccx with BC routine
-ccxBin = compileCcx(ccxComplieScript, ccxFolder, ccxSrc, fluxRoutine);
-
-# Generate ccx input (.inp) files
-file[] fCcxInpFiles;
-foreach fmsh4ccx, i in fmsh4ccxFiles{
-	file finp       <strcat(caseName,".inp")>;
-	string caseName = strcat(outCaseDirs[i], "solve");
-	finp = getCcxInp(getCcxInpScript, fgenericInp, fmsh4ccx, utils);
-	fCcxInpFiles[i] = finp;
-}
-
-# Run ccx for each case
-
-file[] solFiles;
-foreach fmsh4ccx, i in fmsh4ccxFiles{
-	string caseName = strcat(outCaseDirs[i], "solve");
-	file fsol         <strcat(caseName,".frd")>;
-	file fsta         <strcat(caseName,".sta")>;
-	file fcvg         <strcat(caseName,".cvg")>;
-	file fdat         <strcat(caseName,".dat")>;
-	file fccxErr      <strcat(outCaseDirs[i], "ccx.err")>;
-	file fccxOut      <strcat(outCaseDirs[i], "ccx.out")>;
-	(fsol, fsta, fcvg, fdat, fccxOut, fccxErr) = 
-		  runCcx(ccxExecScript, ccxBin, fmsh4ccxFiles[i], caseName, fCcxInpFiles[i]);
-	solFiles[i] = fsol;
-}
-
-# Generate animation and png files for each case
-
-foreach fsol, i in solFiles{
-
-	file fanim          <strcat(outCaseDirs[i], "temp.gif")>;
-	file[] fpngs        <filesys_mapper;location=strcat(outCaseDirs[i],"pngs")>;
-	file fanimOut       <strcat(outCaseDirs[i], "anim.out")>;
-	file fanimErr       <strcat(outCaseDirs[i], "anim.err")>;
-
-	(fanim, fpngs, fanimOut, fanimErr) = makeAnimation(makeAnimScript, fsol, outCaseDirs[i]);
 }
 
