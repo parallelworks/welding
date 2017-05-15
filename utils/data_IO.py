@@ -36,7 +36,7 @@ def read_float_from_file_pointer(file_pointer, flag_str):
     for line in file_pointer:
         if line.startswith(flag_str):
             data = float(line.split()[num_words_in_flag])
-    if not data:
+    if not isinstance(data, float):
         print("Error: cannot read ", flag_str, " from input file")
         sys.exit(1)
     return data
@@ -49,7 +49,7 @@ def read_int_from_file_pointer(file_pointer, flag_str):
     for line in file_pointer:
         if line.startswith(flag_str):
             data = int(line.split()[num_words_in_flag])
-    if not data:
+    if not isinstance(data, int):
         print("Error: cannot read ", flag_str, " from input file")
         sys.exit(1)
     return data

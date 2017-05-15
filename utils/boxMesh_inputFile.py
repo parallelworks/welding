@@ -20,7 +20,7 @@ if len(sys.argv) < 3:
 inputFileName = sys.argv[1]
 geomFileAddress = sys.argv[2]
 
-if len(sys.argv) >= 3:
+if len(sys.argv) > 3:
     meshFileName = sys.argv[3]
 else:
     meshFileName = "outputs/box_mesh.unv"
