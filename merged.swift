@@ -98,9 +98,8 @@ app (file ccxBin) compileCcx (file compileScript, string outDir, string ccxTGZRo
     bash filename(compileScript) filename(ccxSrc) ccxTGZRootName filename(fluxRoutine) outDir;
 }
 
-
-app (file fccxInp) getCcxInp (file getCcxInpScript, file fgenericInp, file fmsh4ccx, file utils[]){
-	python filename(getCcxInpScript) filename(fgenericInp) filename(fmsh4ccx) filename(fccxInp);
+app (file fccxInp) getCcxInp (file getCcxInpScript, file fsimParams, file fmsh4ccx, file utils[]){
+	python filename(getCcxInpScript) filename(fsimParams) filename(fmsh4ccx) filename(fccxInp);
 }
 
 app (file fsol, file fsta, file fcvg, file fdat, file fOut, file ferr) 
@@ -178,7 +177,7 @@ file[] fCcxInpFiles;
 foreach fmsh4ccx, i in fmsh4ccxFiles{
 	string caseName = strcat(outCaseDirs[i], "solve");
 	file finp       <strcat(caseName,".inp")>;
-	finp = getCcxInp(getCcxInpScript, fgenericInp, fmsh4ccx, utils);
+	finp = getCcxInp(getCcxInpScript, simFileParams[i], fmsh4ccx, utils);
 	fCcxInpFiles[i] = finp;
 }
 
