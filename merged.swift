@@ -13,25 +13,25 @@ string outDir = "outputs/";
 string errorsDir = strcat(outDir, "errorFiles/");
 string outCaseDir = "outputs/case";
 
-file fgeom                <strcat("inputs/",geomFileName)>;
-file fsweepParams		  <strcat("inputs/",sweepParamsFileName)>;
+file fgeom                  <strcat("inputs/",geomFileName)>;
+file fsweepParams		    <strcat("inputs/",sweepParamsFileName)>;
 
-file meshScript           <"utils/makeHighResBoxWithMesh_inputFile.py">;
+file meshScript             <"utils/makeHighResBoxWithMesh_inputFile.py">;
 
-file utils[] 		      <filesys_mapper;location="utils", suffix=".py">;
+file utils[] 		        <filesys_mapper;location="utils", suffix=".py">;
 
-file convertScript        <"utils/unv2abaqus.py">;
+file convertScript          <"utils/unv2abaqus.py">;
 
-file writeFbdScript       <"utils/writeCGXfbdFile.py">;
+file writeFbdScript         <"utils/writeCGXfbdFile.py">;
 
 file cgxBin                 <"utils/cgx_2.12">;
 file cgxExecScript          <"utils/runCgxBinary.sh">;
 
 file writeFortranFileScript <"utils/writeDFluxFile.py">;
 
-string ccxFolderRootName =        "ccx-212";
-file ccxSrc                <strcat("utils/", ccxFolderRootName, ".tar.gz")>; 
-file compileScript     <"utils/compileCcx2.sh">;
+string ccxFolderRootName =  "ccx-212";
+file ccxSrc                 <strcat("utils/", ccxFolderRootName, ".tar.gz")>; 
+file compileScript          <"utils/compileCcx2.sh">;
 
 file getCcxInpScript        <"utils/writeCCXinpFile.py">;
 file fgenericInp            <"inputs/solve.inp">;
@@ -113,10 +113,10 @@ app (file fanim, file[] fpngs, file fOut, file ferr) makeAnimation (file makeAni
 
 #----------------workflow-------------------#
 
-file caseFile 	<"inputs/cases.list">;
+file caseFile 	<"outputs/cases.list">;
 caseFile = expandSweep(fsweepParams, utils);
 
-string simFilesDir = "inputs/simParamFiles/";
+string simFilesDir = "outputs/simParamFiles/";
 file[] simFileParams <filesys_mapper;location=simFilesDir>;
 simFileParams = writeSimParamFiles(caseFile, utils, simFilesDir, simParamsFileName);
 
