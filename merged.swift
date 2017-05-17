@@ -16,6 +16,8 @@ string outCaseDir = "outputs/case";
 file fgeom                  <strcat("inputs/",geomFileName)>;
 file fsweepParams		    <strcat("inputs/",sweepParamsFileName)>;
 
+file runSalomeScript        <"utils/runSalome.sh">;
+file killSalomeScript       <"utils/killSalome.sh">;
 file meshScript             <"utils/makeHighResBoxWithMesh_inputFile.py">;
 
 file utils[] 		        <filesys_mapper;location="utils", suffix=".py">;
@@ -48,7 +50,8 @@ app (file cases) expandSweep (file sweepParams, file[] utils) {
 }
 
 # Read the cases file and generate a simFileParams file for each case
-app (file[] simFileParams) writeSimParamFiles (file cases, file[] utils, string simFilesDir, string simFileRootName) {
+app (file[] simFileParams) writeSimParamFiles (file cases, file[] utils, string simFilesDir, 
+                                                                         string simFileRootName) {
 	python "utils/writeSimParamFiles.py" filename(cases) simFilesDir simFileRootName;
 }
 
@@ -62,9 +65,19 @@ app (file fmesh, file ferr) makeMeshFromStep (file meshScript, file fgeom, file 
            filename(fsimParams), ",", filename(fgeom), ",", filename(fmesh));
 }
 
-app (file fmesh, file ferr) makeMesh (file meshScript, file utils[], file fsimParams ) {
-    salome "start" "-t" "-w 1" filename(meshScript) stderr=filename(ferr) strcat("args:",
-           filename(fsimParams), ",", filename(fmesh));
+app (file fmesh, file ferr, file salPort) makeMesh (file meshScript, file utils[], file fsimParams ) {
+    salome "start" "-t" "-w 1"  "--ns-port-log="filename(salPort) filename(meshScript) 
+           stderr=filename(ferr) strcat("args:", filename(fsimParams), ",", filename(fmesh));
+}
+
+app (file fmesh, file ferr, file fout, file salPort) makeMeshWritePort (file runSalomeScript, file meshScript,
+                                                                        file utils[], file fsimParams) {
+    bash filename(runSalomeScript) filename(salPort) filename(meshScript) filename(fsimParams) filename(fmesh) 
+         stderr=filename(ferr) stdout=filename(fout);
+}
+
+app (file ferr, file fout) killSalomeInstance (file killSalomeScript, file[] fmeshes,  file salPort){
+    bash filename(killSalomeScript) filename(salPort) stderr=filename(ferr) stdout=filename(fout); 
 }
 
 (string nameNoSuffix) trimSuffix (string nameWithSuffix){
@@ -84,7 +97,8 @@ app (file ffbd, file ferr) writeFbdFile (file writeFbdScript, file fmeshInp, fil
 }
 
 # convert abq mesh to ccx 
-app (file fmsh4ccx, file fOut, file ferr) convertAbq2Msh (file cgxExecScript, file cgxBin, file ffbd, file fmeshInp){
+app (file fmsh4ccx, file fOut, file ferr) convertAbq2Msh (file cgxExecScript, file cgxBin, 
+                                                          file ffbd, file fmeshInp){
 	bash filename(cgxExecScript) filename(cgxBin) filename(ffbd) stderr = filename(ferr) stdout = filename(fOut);
 }
 
@@ -94,7 +108,8 @@ app (file fluxRoutine) writeFortranFluxRoutine (file writeFortranFileScript, fil
     python filename(writeFortranFileScript) filename(fluxRoutine) filename(fsimParams);
 }
 
-app (file ccxBin) compileCcx (file compileScript, string outDir, string ccxTGZRootName, file ccxSrc, file fluxRoutine) {
+app (file ccxBin) compileCcx (file compileScript, string outDir, string ccxTGZRootName, file ccxSrc,
+                              file fluxRoutine) {
     bash filename(compileScript) filename(ccxSrc) ccxTGZRootName filename(fluxRoutine) outDir;
 }
 
@@ -107,7 +122,8 @@ app (file fsol, file fsta, file fcvg, file fdat, file fOut, file ferr)
 	bash filename(ccxExecScript) filename(ccxBin)  caseName stderr=filename(ferr) stdout=filename(fOut);
 }
 
-app (file fanim, file[] fpngs, file fOut, file ferr) makeAnimation (file makeAnimScript, file fsol, string caseDir, file cgxBin){
+app (file fanim, file[] fpngs, file fOut, file ferr) makeAnimation (file makeAnimScript, file fsol, string caseDir,
+                                                                    file cgxBin){
 	bash filename(makeAnimScript) caseDir stderr=filename(ferr) stdout=filename(fOut);
 }
 
@@ -121,11 +137,22 @@ file[] simFileParams <filesys_mapper;location=simFilesDir>;
 simFileParams = writeSimParamFiles(caseFile, utils, simFilesDir, simParamsFileName);
 
 file[] fmeshes;
+file[] salPortFiles;
 foreach fsimParams,i in simFileParams{
    	file fmesh  	   <strcat(outDir, meshFileName,i,".unv")>;
     file salomeErr     <strcat(errorsDir, "salome",i,".err")>;                          
-    (fmesh, salomeErr) = makeMesh(meshScript, utils, fsimParams);
+    file salomeOut     <strcat(errorsDir, "salome",i,".out")>;                          
+    file fsalPortNum   <strcat(outDir,"salomePort" ,i,".log")>;
+    (fmesh, salomeErr, salomeOut, fsalPortNum) = makeMeshWritePort(runSalomeScript, meshScript, utils, fsimParams);
     fmeshes[i] = fmesh;
+    salPortFiles[i] = fsalPortNum;
+}
+
+# Terminate Salome instances after done with generating all mesh files
+foreach fsalPort,i in salPortFiles{
+    file salKillErr     <strcat(errorsDir, "salomeKill",i,".err")>;                          
+    file salKillOut     <strcat(errorsDir, "salomeKill",i,".out")>;                          
+    (salKillErr, salKillOut) =  killSalomeInstance(killSalomeScript, fmeshes,  fsalPort);
 }
 
 file[] fAbqMeshes;
