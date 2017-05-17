@@ -1,9 +1,9 @@
 #!/bin/bash
 
+dir=$(pwd)
+
 caseDir=$1
 cd $caseDir
-
-#dir=/core/
 
 rm pngs -R > /dev/null 2>&1
 mkdir -p pngs
@@ -52,7 +52,8 @@ cat > tmp.fbd <<END
 END
 
 #xvfb-run -a --server-args="-screen 0 1024x768x24" $dir/cgx-212/cgx_2.12/src/cgx -b tmp.fbd > /dev/null # 2>&1
-xvfb-run -a --server-args="-screen 0 1024x768x24" cgx_2.12 -b tmp.fbd > /dev/null # 2>&1
+echo "xvfb-run -a --server-args="-screen 0 1024x768x24" $dir/utils/cgx_2.12 -b tmp.fbd > /dev/null " # 2>&1
+xvfb-run -a --server-args="-screen 0 1024x768x24" $dir/utils/cgx_2.12 -b tmp.fbd > /dev/null # 2>&1
     
 ((frame++))
 done

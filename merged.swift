@@ -107,7 +107,7 @@ app (file fsol, file fsta, file fcvg, file fdat, file fOut, file ferr)
 	bash filename(ccxExecScript) filename(ccxBin)  caseName stderr=filename(ferr) stdout=filename(fOut);
 }
 
-app (file fanim, file[] fpngs, file fOut, file ferr) makeAnimation (file makeAnimScript, file fsol, string caseDir){
+app (file fanim, file[] fpngs, file fOut, file ferr) makeAnimation (file makeAnimScript, file fsol, string caseDir, file cgxBin){
 	bash filename(makeAnimScript) caseDir stderr=filename(ferr) stdout=filename(fOut);
 }
 
@@ -206,6 +206,6 @@ foreach fsol, i in solFiles{
 	file fanimOut       <strcat(outCaseDirs[i], "anim.out")>;
 	file fanimErr       <strcat(outCaseDirs[i], "anim.err")>;
 
-	(fanim, fpngs, fanimOut, fanimErr) = makeAnimation(makeAnimScript, fsol, outCaseDirs[i]);
+	(fanim, fpngs, fanimOut, fanimErr) = makeAnimation(makeAnimScript, fsol, outCaseDirs[i], cgxBin);
 }
 
