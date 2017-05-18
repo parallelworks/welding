@@ -40,11 +40,9 @@ file fgenericInp            <"inputs/solve.inp">;
 
 file ccxExecScript          <"utils/runCcx2PVBinary.sh">;
 
-#file makeAnimScript         <"utils/genAnimationInDir.sh">;
 file makeAnimScriptCgx      <"utils/genAnimationInDir.sh">;
 file makeAnimScriptPV       <"utils/genAnimationPV.sh">;
 file paraviewPythonScript   <"utils/pvLoadSavePngs.py">;
-
 
 # ------ APP DEFINITIONS --------------------#
 
@@ -140,109 +138,25 @@ app (file fanim, file[] fpngs, file fOut, file ferr) makeAnimationPV (file makeA
 
 #----------------workflow-------------------#
 
-file caseFile 	<"outputs/cases.list">;
-caseFile = expandSweep(fsweepParams, utils);
-
-string simFilesDir = "outputs/simParamFiles/";
-file[] simFileParams <filesys_mapper;location=simFilesDir>;
-simFileParams = writeSimParamFiles(caseFile, utils, simFilesDir, simParamsFileName);
-
-file[] fmeshes;
-file[] salPortFiles;
-foreach fsimParams,i in simFileParams{
-   	file fmesh  	   <strcat(outDir, meshFileName,i,".unv")>;
-    file salomeErr     <strcat(errorsDir, "salome",i,".err")>;                          
-    file salomeOut     <strcat(errorsDir, "salome",i,".out")>;                          
-    file fsalPortNum   <strcat(outDir,"salomePort" ,i,".log")>;
-    (fmesh, salomeErr, salomeOut, fsalPortNum) = makeMeshWritePort(runSalomeScript, meshScript, utils, fsimParams);
-    fmeshes[i] = fmesh;
-    salPortFiles[i] = fsalPortNum;
-}
-
-# Terminate Salome instances after done with generating all mesh files
-foreach fsalPort,i in salPortFiles{
-    file salKillErr     <strcat(errorsDir, "salomeKill",i,".err")>;                          
-    file salKillOut     <strcat(errorsDir, "salomeKill",i,".out")>;                          
-    (salKillErr, salKillOut) =  killSalomeInstance(killSalomeScript, fmeshes,  fsalPort);
-}
-
-file[] fAbqMeshes;
-foreach fmesh,i in fmeshes{
-    string AbqMeshName = strcat(outDir, meshFileName,i);
-    file fAbqMesh      <strcat(AbqMeshName, ".inp")>;
-    file meshConvErr   <strcat(errorsDir, "meshConv", i, ".err")>;                          
-    (fAbqMesh, meshConvErr) = convertMesh(convertScript, fmesh, utils, AbqMeshName);
-    fAbqMeshes[i] = fAbqMesh;
-}
-
-file[] fbdFiles;
-string[] mshFileAddresses;
-string[] outCaseDirs;
-foreach fAbqMesh,i in fAbqMeshes{
-	outCaseDirs[i] = strcat(outCaseDir, i,"/");
-    file ffbd              <strcat(outCaseDirs[i], "premesh.fbd")>;
-    file fcgxWriteErr      <strcat(outCaseDirs[i], "fcgxWrite.err")>;
-    mshFileAddresses[i] = strcat(outCaseDirs[i], meshFileName, ".msh");
-    (ffbd, fcgxWriteErr) = writeFbdFile(writeFbdScript, fAbqMesh, utils, mshFileAddresses[i]);
-    fbdFiles[i] = ffbd;
-}
-
-file[] fmsh4ccxFiles;
-foreach ffbd,i in fbdFiles{
-    file fmsh4ccx       <mshFileAddresses[i]>;
-    file fOut           <strcat(outCaseDirs[i], "fcgxPremesh.out")>;
-    file fcgxErr        <strcat(outCaseDirs[i], "fcgxPremesh.err")>;
-    (fmsh4ccx, fOut, fcgxErr) = convertAbq2Msh(cgxExecScript, cgxBin, ffbd, fAbqMeshes[i]);
-    fmsh4ccxFiles[i] = fmsh4ccx;
-}
-
-file[] ffluxRoutines;
-foreach fsimParams,i in simFileParams{
-   	file fluxRoutine 	   <strcat(outCaseDirs[i], "dflux.f")>;
-    fluxRoutine =  writeFortranFluxRoutine(writeFortranFileScript, utils,  fsimParams);     
-    ffluxRoutines[i] = fluxRoutine;
-}
-
-file[] ccxBinaries;
-foreach fluxRoutine, i in ffluxRoutines{
-        file ccxBin               <strcat(outCaseDirs[i], ccxFolderRootName, "/src/", "ccx_2.12")>;
-        ccxBin = compileCcx(compileScript, outCaseDirs[i], ccxFolderRootName, ccxSrc, ffluxRoutines[i]);
-        ccxBinaries[i] = ccxBin;
-}
-
-# Generate ccx input (.inp) files
-file[] fCcxInpFiles;
-foreach fmsh4ccx, i in fmsh4ccxFiles{
-	string caseName = strcat(outCaseDirs[i], "solve");
-	file finp       <strcat(caseName,".inp")>;
-	finp = getCcxInp(getCcxInpScript, simFileParams[i], fmsh4ccx, utils);
-	fCcxInpFiles[i] = finp;
-}
-
-# Run ccx for each case
-
-file[] solFiles;
-foreach fsimParams,i in simFileParams{
-	string caseName = strcat(outCaseDirs[i], "solve");
-	file fsol         <strcat(caseName,".exo")>;
-	file fsta         <strcat(caseName,".sta")>;
-	file fcvg         <strcat(caseName,".cvg")>;
-	file fdat         <strcat(caseName,".dat")>;
-	file fccxErr      <strcat(outCaseDirs[i], "ccx.err")>;
-	file fccxOut      <strcat(outCaseDirs[i], "ccx.out")>;
-	(fsol, fsta, fcvg, fdat, fccxOut, fccxErr) = 
-		  runCcx(ccxExecScript, ccxBinaries[i], fmsh4ccxFiles[i], caseName, fCcxInpFiles[i]);
-	solFiles[i] = fsol;
-}
 
 # Generate animation and png files for each case
+int ii = 0;
+string[] outCaseDirs;
+
+outCaseDirs[ii] = strcat(outCaseDir, ii,"/");
+string caseName = strcat(outCaseDirs[ii], "solve");
+
+file[] solFiles;
+file fsoli         <strcat(caseName,".exo")>;
+solFiles[ii] = fsoli;
 
 foreach fsol, i in solFiles{
+
 	file fanim          <strcat(outCaseDirs[i], "temp.gif")>;
 	string pngDir =     strcat(outCaseDirs[i],"pngs");
 	file[] fpngs        <filesys_mapper;location=pngDir>;
 	file fanimOut       <strcat(outCaseDirs[i], "anim.out")>;
 	file fanimErr       <strcat(outCaseDirs[i], "anim.err")>;
- 	(fanim, fpngs, fanimOut, fanimErr) = makeAnimationPV(makeAnimScriptPV, paraviewPythonScript, fsol, pngDir);
+	(fanim, fpngs, fanimOut, fanimErr) = makeAnimationPV(makeAnimScriptPV, paraviewPythonScript, fsol, pngDir);
 }
 

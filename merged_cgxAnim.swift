@@ -31,20 +31,16 @@ file cgxExecScript          <"utils/runCgxBinary.sh">;
 
 file writeFortranFileScript <"utils/writeDFluxFile.py">;
 
-string ccxFolderRootName =  "ccx-212-patch";
+string ccxFolderRootName =  "ccx-212";
 file ccxSrc                 <strcat("utils/", ccxFolderRootName, ".tar.gz")>; 
 file compileScript          <"utils/compileCcx2.sh">;
 
 file getCcxInpScript        <"utils/writeCCXinpFile.py">;
 file fgenericInp            <"inputs/solve.inp">;
 
-file ccxExecScript          <"utils/runCcx2PVBinary.sh">;
+file ccxExecScript          <"utils/runCcxBinary.sh">;
 
-#file makeAnimScript         <"utils/genAnimationInDir.sh">;
-file makeAnimScriptCgx      <"utils/genAnimationInDir.sh">;
-file makeAnimScriptPV       <"utils/genAnimationPV.sh">;
-file paraviewPythonScript   <"utils/pvLoadSavePngs.py">;
-
+file makeAnimScript         <"utils/genAnimationInDir.sh">;
 
 # ------ APP DEFINITIONS --------------------#
 
@@ -126,16 +122,9 @@ app (file fsol, file fsta, file fcvg, file fdat, file fOut, file ferr)
 	bash filename(ccxExecScript) filename(ccxBin)  caseName stderr=filename(ferr) stdout=filename(fOut);
 }
 
-app (file fanim, file[] fpngs, file fOut, file ferr) makeAnimationCgx (file makeAnimScriptCgx, file fsol, string caseDir,
+app (file fanim, file[] fpngs, file fOut, file ferr) makeAnimation (file makeAnimScript, file fsol, string caseDir,
                                                                     file cgxBin){
-	bash filename(makeAnimScriptCgx) caseDir stderr=filename(ferr) stdout=filename(fOut);
-}
-
-app (file fanim, file[] fpngs, file fOut, file ferr) makeAnimationPV (file makeAnimScriptPV, 
-                                                                      file paraviewPythonScript, file fsol, 
-                                                                      string pngDir){
-    bash filename(makeAnimScriptPV) filename(paraviewPythonScript) filename(fsol) pngDir filename(fanim)
-         stderr=filename(ferr) stdout=filename(fOut);
+	bash filename(makeAnimScript) caseDir stderr=filename(ferr) stdout=filename(fOut);
 }
 
 #----------------workflow-------------------#
@@ -224,7 +213,7 @@ foreach fmsh4ccx, i in fmsh4ccxFiles{
 file[] solFiles;
 foreach fsimParams,i in simFileParams{
 	string caseName = strcat(outCaseDirs[i], "solve");
-	file fsol         <strcat(caseName,".exo")>;
+	file fsol         <strcat(caseName,".frd")>;
 	file fsta         <strcat(caseName,".sta")>;
 	file fcvg         <strcat(caseName,".cvg")>;
 	file fdat         <strcat(caseName,".dat")>;
@@ -238,11 +227,12 @@ foreach fsimParams,i in simFileParams{
 # Generate animation and png files for each case
 
 foreach fsol, i in solFiles{
+
 	file fanim          <strcat(outCaseDirs[i], "temp.gif")>;
-	string pngDir =     strcat(outCaseDirs[i],"pngs");
-	file[] fpngs        <filesys_mapper;location=pngDir>;
+	file[] fpngs        <filesys_mapper;location=strcat(outCaseDirs[i],"pngs")>;
 	file fanimOut       <strcat(outCaseDirs[i], "anim.out")>;
 	file fanimErr       <strcat(outCaseDirs[i], "anim.err")>;
- 	(fanim, fpngs, fanimOut, fanimErr) = makeAnimationPV(makeAnimScriptPV, paraviewPythonScript, fsol, pngDir);
+
+	(fanim, fpngs, fanimOut, fanimErr) = makeAnimation(makeAnimScript, fsol, outCaseDirs[i], cgxBin);
 }
 
