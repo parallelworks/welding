@@ -4,14 +4,18 @@ type file;
 
 # ------ INPUT / OUTPUT DEFINITIONS -------#
 
-string geomFileName = arg("geomFile", "box.step");
-string meshFileName = arg("meshFile", "box");
-string simParamsFileName = arg("simParamsFile", "boxSimFile");
-string sweepParamsFileName = arg("sweepParamFile", "sweepParams.run");
+string geomFileName         = arg("geomFile", "box.step");
+string meshFileName         = arg("meshFile", "box");
+string simParamsFileName    = arg("simParamsFile", "boxSimFile");
+string sweepParamsFileName  = arg("sweepParamFile", "sweepParams.run");
+string salomePath           = arg("salomeBinPath","/home/marmar/programs-local/SALOME-8.2.0-UB14.04/");
+string paraviewPath         = arg("pvpythonPath",
+                                  "/home/marmar/programs-local/ParaView-5.3.0-Qt5-OpenGL2-MPI-Linux-64bit/bin/");
+string cgxBinAddress        = arg("cgxBinFile","utils/cgx_2.12");
 
-string outDir = "outputs/";
-string errorsDir = strcat(outDir, "errorFiles/");
-string outCaseDir = "outputs/case";
+string outDir              = "outputs/";
+string errorsDir           = strcat(outDir, "errorFiles/");
+string outCaseDir          = "outputs/case";
 
 file fgeom                  <strcat("inputs/",geomFileName)>;
 file fsweepParams		    <strcat("inputs/",sweepParamsFileName)>;
@@ -26,7 +30,7 @@ file convertScript          <"utils/unv2abaqus.py">;
 
 file writeFbdScript         <"utils/writeCGXfbdFile.py">;
 
-file cgxBin                 <"utils/cgx_2.12">;
+file cgxBin                 <cgxBinAddress>;
 file cgxExecScript          <"utils/runCgxBinary.sh">;
 
 file writeFortranFileScript <"utils/writeDFluxFile.py">;
@@ -74,14 +78,15 @@ app (file fmesh, file ferr, file salPort) makeMesh (file meshScript, file utils[
            stderr=filename(ferr) strcat("args:", filename(fsimParams), ",", filename(fmesh));
 }
 
-app (file fmesh, file ferr, file fout, file salPort) makeMeshWritePort (file runSalomeScript, file meshScript,
-                                                                        file utils[], file fsimParams) {
-    bash filename(runSalomeScript) filename(salPort) filename(meshScript) filename(fsimParams) filename(fmesh) 
-         stderr=filename(ferr) stdout=filename(fout);
+app (file fmesh, file ferr, file fout, file salPort) makeMeshWritePort (file runSalomeScript, string salomePath,
+                                                                  file meshScript, file utils[], file fsimParams) {
+    bash filename(runSalomeScript) salomePath filename(salPort) filename(meshScript) filename(fsimParams)
+         filename(fmesh) stderr=filename(ferr) stdout=filename(fout);
 }
 
-app (file ferr, file fout) killSalomeInstance (file killSalomeScript, file[] fmeshes,  file salPort){
-    bash filename(killSalomeScript) filename(salPort) stderr=filename(ferr) stdout=filename(fout); 
+app (file ferr, file fout) killSalomeInstance (file killSalomeScript, string salomePath, file[] fmeshes, 
+                                               file salPort){
+    bash filename(killSalomeScript) filename(salPort) salomePath stderr=filename(ferr) stdout=filename(fout); 
 }
 
 (string nameNoSuffix) trimSuffix (string nameWithSuffix){
@@ -126,16 +131,16 @@ app (file fsol, file fsta, file fcvg, file fdat, file fOut, file ferr)
 	bash filename(ccxExecScript) filename(ccxBin)  caseName stderr=filename(ferr) stdout=filename(fOut);
 }
 
-app (file fanim, file[] fpngs, file fOut, file ferr) makeAnimationCgx (file makeAnimScriptCgx, file fsol, string caseDir,
-                                                                    file cgxBin){
+app (file fanim, file[] fpngs, file fOut, file ferr) makeAnimationCgx (file makeAnimScriptCgx, file fsol, 
+                                                                       string caseDir, file cgxBin){
 	bash filename(makeAnimScriptCgx) caseDir stderr=filename(ferr) stdout=filename(fOut);
 }
 
-app (file fanim, file[] fpngs, file fOut, file ferr) makeAnimationPV (file makeAnimScriptPV, 
+app (file fanim, file[] fpngs, file fOut, file ferr) makeAnimationPV (file makeAnimScriptPV, string paraviewPath,
                                                                       file paraviewPythonScript, file fsol, 
                                                                       string pngDir){
-    bash filename(makeAnimScriptPV) filename(paraviewPythonScript) filename(fsol) pngDir filename(fanim)
-         stderr=filename(ferr) stdout=filename(fOut);
+    bash filename(makeAnimScriptPV) paraviewPath filename(paraviewPythonScript) filename(fsol) pngDir
+         filename(fanim) stderr=filename(ferr) stdout=filename(fOut);
 }
 
 #----------------workflow-------------------#
@@ -154,7 +159,8 @@ foreach fsimParams,i in simFileParams{
     file salomeErr     <strcat(errorsDir, "salome",i,".err")>;                          
     file salomeOut     <strcat(errorsDir, "salome",i,".out")>;                          
     file fsalPortNum   <strcat(outDir,"salomePort" ,i,".log")>;
-    (fmesh, salomeErr, salomeOut, fsalPortNum) = makeMeshWritePort(runSalomeScript, meshScript, utils, fsimParams);
+    (fmesh, salomeErr, salomeOut, fsalPortNum) = makeMeshWritePort(runSalomeScript, salomePath, meshScript, utils,
+                                                                   fsimParams);
     fmeshes[i] = fmesh;
     salPortFiles[i] = fsalPortNum;
 }
@@ -163,7 +169,7 @@ foreach fsimParams,i in simFileParams{
 foreach fsalPort,i in salPortFiles{
     file salKillErr     <strcat(errorsDir, "salomeKill",i,".err")>;                          
     file salKillOut     <strcat(errorsDir, "salomeKill",i,".out")>;                          
-    (salKillErr, salKillOut) =  killSalomeInstance(killSalomeScript, fmeshes,  fsalPort);
+    (salKillErr, salKillOut) =  killSalomeInstance(killSalomeScript, salomePath, fmeshes,  fsalPort);
 }
 
 file[] fAbqMeshes;
@@ -243,6 +249,7 @@ foreach fsol, i in solFiles{
 	file[] fpngs        <filesys_mapper;location=pngDir>;
 	file fanimOut       <strcat(outCaseDirs[i], "anim.out")>;
 	file fanimErr       <strcat(outCaseDirs[i], "anim.err")>;
- 	(fanim, fpngs, fanimOut, fanimErr) = makeAnimationPV(makeAnimScriptPV, paraviewPythonScript, fsol, pngDir);
+ 	(fanim, fpngs, fanimOut, fanimErr) = makeAnimationPV(makeAnimScriptPV, paraviewPath, paraviewPythonScript, 
+                                                         fsol, pngDir);
 }
 
