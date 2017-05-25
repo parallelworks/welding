@@ -15,7 +15,6 @@ string cgxBinAddress        = arg("cgxBinFile","utils/cgx_2.12");
 
 string outDir              = "outputs/";
 string errorsDir           = strcat(outDir, "errorFiles/");
-string outCaseDir          = "outputs/case";
 
 file fgeom                  <strcat("inputs/",geomFileName)>;
 file fsweepParams		    <strcat("inputs/",sweepParamsFileName)>;
@@ -49,6 +48,8 @@ file makeAnimScriptCgx      <"utils/genAnimationInDir.sh">;
 file makeAnimScriptPV       <"utils/genAnimationPV.sh">;
 file paraviewPythonScript   <"utils/pvLoadSavePngs.py">;
 
+file extractScript          <"utils/extract.sh">;
+file metrics2extract        <"inputs/boxKPI.csv">;
 
 # ------ APP DEFINITIONS --------------------#
 
@@ -143,6 +144,14 @@ app (file fanim, file[] fpngs, file fOut, file ferr) makeAnimationPV (file makeA
          filename(fanim) stderr=filename(ferr) stdout=filename(fOut);
 }
 
+app (file MetricsOutput, file[] fpngs, file fOut, file ferr) extractMetrics (file extractScript,
+																  string paraviewPath, file fsol,
+																  file metrics2extract, string extractOutDir,
+															      file utils[]){
+    bash filename(extractScript) paraviewPath filename(fsol) filename(metrics2extract) extractOutDir
+         filename(MetricsOutput) stderr=filename(ferr) stdout=filename(fOut);
+}
+
 #----------------workflow-------------------#
 
 file caseFile 	<"outputs/cases.list">;
@@ -183,12 +192,12 @@ foreach fmesh,i in fmeshes{
 
 file[] fbdFiles;
 string[] mshFileAddresses;
-string[] outCaseDirs;
+string[] caseOutDirs;
 foreach fAbqMesh,i in fAbqMeshes{
-	outCaseDirs[i] = strcat(outCaseDir, i,"/");
-    file ffbd              <strcat(outCaseDirs[i], "premesh.fbd")>;
-    file fcgxWriteErr      <strcat(outCaseDirs[i], "fcgxWrite.err")>;
-    mshFileAddresses[i] = strcat(outCaseDirs[i], meshFileName, ".msh");
+	caseOutDirs[i] = strcat(outDir, "case", i,"/");
+    file ffbd              <strcat(caseOutDirs[i], "premesh.fbd")>;
+    file fcgxWriteErr      <strcat(caseOutDirs[i], "fcgxWrite.err")>;
+    mshFileAddresses[i] = strcat(caseOutDirs[i], meshFileName, ".msh");
     (ffbd, fcgxWriteErr) = writeFbdFile(writeFbdScript, fAbqMesh, utils, mshFileAddresses[i]);
     fbdFiles[i] = ffbd;
 }
@@ -196,30 +205,30 @@ foreach fAbqMesh,i in fAbqMeshes{
 file[] fmsh4ccxFiles;
 foreach ffbd,i in fbdFiles{
     file fmsh4ccx       <mshFileAddresses[i]>;
-    file fOut           <strcat(outCaseDirs[i], "fcgxPremesh.out")>;
-    file fcgxErr        <strcat(outCaseDirs[i], "fcgxPremesh.err")>;
+    file fOut           <strcat(caseOutDirs[i], "fcgxPremesh.out")>;
+    file fcgxErr        <strcat(caseOutDirs[i], "fcgxPremesh.err")>;
     (fmsh4ccx, fOut, fcgxErr) = convertAbq2Msh(cgxExecScript, cgxBin, ffbd, fAbqMeshes[i]);
     fmsh4ccxFiles[i] = fmsh4ccx;
 }
 
 file[] ffluxRoutines;
 foreach fsimParams,i in simFileParams{
-   	file fluxRoutine 	   <strcat(outCaseDirs[i], "dflux.f")>;
+   	file fluxRoutine 	   <strcat(caseOutDirs[i], "dflux.f")>;
     fluxRoutine =  writeFortranFluxRoutine(writeFortranFileScript, utils,  fsimParams);     
     ffluxRoutines[i] = fluxRoutine;
 }
 
 file[] ccxBinaries;
 foreach fluxRoutine, i in ffluxRoutines{
-        file ccxBin               <strcat(outCaseDirs[i], ccxFolderRootName, "/src/", "ccx_2.12")>;
-        ccxBin = compileCcx(compileScript, outCaseDirs[i], ccxFolderRootName, ccxSrc, ffluxRoutines[i]);
+        file ccxBin               <strcat(caseOutDirs[i], ccxFolderRootName, "/src/", "ccx_2.12")>;
+        ccxBin = compileCcx(compileScript, caseOutDirs[i], ccxFolderRootName, ccxSrc, ffluxRoutines[i]);
         ccxBinaries[i] = ccxBin;
 }
 
 # Generate ccx input (.inp) files
 file[] fCcxInpFiles;
 foreach fmsh4ccx, i in fmsh4ccxFiles{
-	string caseName = strcat(outCaseDirs[i], "solve");
+	string caseName = strcat(caseOutDirs[i], "solve");
 	file finp       <strcat(caseName,".inp")>;
 	finp = getCcxInp(getCcxInpScript, simFileParams[i], fmsh4ccx, utils);
 	fCcxInpFiles[i] = finp;
@@ -229,13 +238,13 @@ foreach fmsh4ccx, i in fmsh4ccxFiles{
 
 file[] solFiles;
 foreach fsimParams,i in simFileParams{
-	string caseName = strcat(outCaseDirs[i], "solve");
+	string caseName = strcat(caseOutDirs[i], "solve");
 	file fsol         <strcat(caseName,".exo")>;
 	file fsta         <strcat(caseName,".sta")>;
 	file fcvg         <strcat(caseName,".cvg")>;
 	file fdat         <strcat(caseName,".dat")>;
-	file fccxErr      <strcat(outCaseDirs[i], "ccx.err")>;
-	file fccxOut      <strcat(outCaseDirs[i], "ccx.out")>;
+	file fccxErr      <strcat(caseOutDirs[i], "ccx.err")>;
+	file fccxOut      <strcat(caseOutDirs[i], "ccx.out")>;
 	(fsol, fsta, fcvg, fdat, fccxOut, fccxErr) = 
 		  runCcx(ccxExecScript, ccxBinaries[i], fmsh4ccxFiles[i], caseName, fCcxInpFiles[i]);
 	solFiles[i] = fsol;
@@ -244,12 +253,24 @@ foreach fsimParams,i in simFileParams{
 # Generate animation and png files for each case
 
 foreach fsol, i in solFiles{
-	file fanim          <strcat(outCaseDirs[i], "temp.gif")>;
-	string pngDir =     strcat(outCaseDirs[i],"pngs");
+	file fanim          <strcat(caseOutDirs[i], "temp.gif")>;
+	string pngDir =     strcat(caseOutDirs[i],"pngs");
 	file[] fpngs        <filesys_mapper;location=pngDir>;
-	file fanimOut       <strcat(outCaseDirs[i], "anim.out")>;
-	file fanimErr       <strcat(outCaseDirs[i], "anim.err")>;
+	file fanimOut       <strcat(caseOutDirs[i], "anim.out")>;
+	file fanimErr       <strcat(caseOutDirs[i], "anim.err")>;
  	(fanim, fpngs, fanimOut, fanimErr) = makeAnimationPV(makeAnimScriptPV, paraviewPath, paraviewPythonScript, 
                                                          fsol, pngDir);
+}
+
+# Extract metrics and png files using paraview
+
+foreach fsol, i in solFiles{
+	file MetricsOutput  <strcat(caseOutDirs[i], "metrics.csv")>;
+	string extractOutDir = strcat(outDir,"png/",i,"/");
+	file fextractPng[]	 <filesys_mapper;location=extractOutDir>;	
+	file fextractOut       <strcat(caseOutDirs[i], "extract.out")>;
+	file fextractErr       <strcat(caseOutDirs[i], "extract.err")>;
+	(MetricsOutput, fextractPng, fextractOut, fextractErr) = extractMetrics (extractScript, paraviewPath, fsol,
+																			metrics2extract, extractOutDir, utils);
 }
 
