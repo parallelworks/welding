@@ -1,54 +1,69 @@
 import sys
 
+def xstr(s):
+    return '' if s is None else str(s)
 
-def read_ints_from_file_pointer(file_pointer, flag_str, num_data):
+
+def str2bool(v):
+    return v.lower() in ("yes", "true", "t", "1")
+
+
+def read_ints_from_file_pointer(file_pointer, flag_str, num_data,
+                                delimiter=None, startIndex=0):
     data = []
     num_words_in_flag = len(flag_str.split())
     file_pointer.seek(0)
     for line in file_pointer:
         if line.startswith(flag_str):
-            for i_data in range(num_words_in_flag, num_words_in_flag+num_data):
-                data.append(int(line.split()[i_data]))
+            line = line[len(flag_str + xstr(delimiter)):]  # Remove flag from the beginning of line
+            for i_data in range(num_data):
+                data.append(int(line.split(delimiter)[i_data+startIndex]))
     if len(data) < num_data:
         print("Error: cannot read ", flag_str, " from input file")
         sys.exit(1)
     return data
 
 
-def read_floats_from_file_pointer(file_pointer, flag_str, num_data):
+def read_floats_from_file_pointer(file_pointer, flag_str, num_data,
+                                  delimiter=None, startIndex=0):
     data = []
     num_words_in_flag = len(flag_str.split())
     file_pointer.seek(0)
     for line in file_pointer:
         if line.startswith(flag_str):
-            for i_data in range(num_words_in_flag, num_words_in_flag+num_data):
-                data.append(float(line.split()[i_data]))
+            line = line[len(flag_str + xstr(delimiter)):]  # Remove flag from the beginning of line
+            for i_data in range(num_data):
+                data.append(float(line.split(delimiter)[i_data + startIndex]))
     if len(data) < num_data:
         print("Error: cannot read ", flag_str, " from input file")
         sys.exit(1)
     return data
 
 
-def read_float_from_file_pointer(file_pointer, flag_str):
+def read_float_from_file_pointer(file_pointer, flag_str, delimiter=None,
+                                 startIndex=0):
     data = []
     num_words_in_flag = len(flag_str.split())
     file_pointer.seek(0)
     for line in file_pointer:
         if line.startswith(flag_str):
-            data = float(line.split()[num_words_in_flag])
+            line = line[len(flag_str + xstr(delimiter)):]  # Remove flag from the beginning of line
+            data = float(line.split(delimiter)[startIndex])
     if not isinstance(data, float):
         print("Error: cannot read ", flag_str, " from input file")
         sys.exit(1)
     return data
 
 
-def read_int_from_file_pointer(file_pointer, flag_str):
+def read_int_from_file_pointer(file_pointer, flag_str, delimiter=None,
+                                 startIndex=0):
     data = []
     num_words_in_flag = len(flag_str.split())
     file_pointer.seek(0)
     for line in file_pointer:
         if line.startswith(flag_str):
-            data = int(line.split()[num_words_in_flag])
+            line = line[len(flag_str + xstr(delimiter)):]  # Remove flag from the beginning of line
+            data = int(line.split(delimiter)[startIndex])
     if not isinstance(data, int):
         print("Error: cannot read ", flag_str, " from input file")
         sys.exit(1)
