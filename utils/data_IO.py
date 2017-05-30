@@ -1,6 +1,15 @@
 import sys
 import os
 
+
+def xstr(s):
+    return '' if s is None else str(s)
+
+
+def str2bool(v):
+    return v.lower() in ("yes", "true", "t", "1")
+
+
 def read_ints_from_file_pointer(file_pointer, flag_str, num_data):
     data = []
     num_words_in_flag = len(flag_str.split())
