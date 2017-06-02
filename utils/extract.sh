@@ -1,14 +1,13 @@
 #!/bin/bash 
-paraviewPath=$1
-resultsExoFile=$2
-desiredMetricsFile=$3
-pvOutputDir=$4
-outputMetrics=$5
+resultsExoFile=$1
+desiredMetricsFile=$2
+pvOutputDir=$3
+outputMetrics=$4
 
 pvpythonExtractScript=utils/extractBox.py
 pythonPlotScript=utils/plot.py
 
-export PATH=$PATH:$paraviewPath
+export PATH=$PATH:$PARAVIEWPATH
 
 xvfb-run -a --server-args="-screen 0 1024x768x24" pvpython  $pvpythonExtractScript  $resultsExoFile $desiredMetricsFile  $pvOutputDir $outputMetrics
 
