@@ -23,6 +23,7 @@ string meshFilesDir         = strcat(outDir, "case");
 file meshScript             <"utils/beadOnPlate_inputFile.py">;
 file preFbdFile             <"utils/bead_pre.fbd">;
 file getCcxInpScript        <"utils/writeCCXinpFile_beadOnPlate.py">;
+file writeFortranFileScript <"utils/writeDFluxFile.py">;
 file utils[] 		        <filesys_mapper;location="utils", pattern="*.*">;
 
 # ------ APP DEFINITIONS --------------------#
@@ -47,6 +48,9 @@ app (file fccxInp) getCcxInp (file getCcxInpScript, file fsimParams, file utils[
 	python filename(getCcxInpScript) filename(fsimParams) filename(fccxInp);
 }
 
+app (file ccxBin) compileCcx (file writeFortranFileScript, file fsimParams, string caseDir, file utils[]){
+    bash "utils/compileCcx3.sh" filename(writeFortranFileScript) filename(fsimParams) caseDir;
+}
 
 #----------------workflow-------------------#
 
@@ -78,8 +82,17 @@ foreach fsalPort,i in salPortFiles{
 file[] fCcxInpFiles;
 string[] caseOutDirs;
 foreach fsimParams,i in simFileParams{
-	caseOutDirs[i] = strcat(outDir, "case", i,"/");
-	file finp       <strcat(caseOutDirs[i], "solve.inp")>;
+	caseOutDirs[i]   = strcat(outDir, "case", i,"/");
+	file finp        <strcat(caseOutDirs[i], "solve.inp")>;
 	finp = getCcxInp(getCcxInpScript, fsimParams, utils);
 	fCcxInpFiles[i] = finp;
+}
+
+
+# Write dflux.f files and use them to compile ccx files for each case
+file[] ccxBinaries;
+foreach fsimParams,i in simFileParams{
+        file ccxBin               <strcat(caseOutDirs[i], "/ccx-212-patch/src/ccx_2.12")>;
+        ccxBin = compileCcx(writeFortranFileScript, fsimParams, caseOutDirs[i], utils );
+        ccxBinaries[i] = ccxBin;
 }
