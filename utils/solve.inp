@@ -1,0 +1,21 @@
+*include, input=allinone.inp
+
+** material definition
+*include, input=materialLib.mat
+*solid section, elset=EbeadSolid, material=x6
+*solid section, elset=EplateSolid, material=steel2
+*initial conditions, type=temperature
+Nall,25
+
+*step
+*UNCOUPLED TEMPERATURE-DISPLACEMENT, Direct
+0.05,.5
+
+*dflux,OP=NEW
+Eall,BFNU,1.
+
+*node file
+NT,U
+*el file
+S,HFL
+*end step

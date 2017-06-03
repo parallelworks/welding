@@ -57,7 +57,7 @@ cgx_2.12  -bg $prefbdFileName 1>>cgx.out 2>>cgx.err
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # Modify this line to make it read the list required files from an input file or solve.inp, to make it problem independent
 printf '\ncat errors \n------------\n' >>cgx.err
-cat all.msh bead_contSurf123.equ bead_contSurf.equ beadSolid.nam plateSolid.nam fixPointOnPlate_123.bou > $allinoneFileName  2>>cgx.err
+cat all.msh bead_contSurf123.equ bead_contSurf.equ beadSolid.nam plateSolid.nam  > $allinoneFileName  2>>cgx.err
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 cd $WORK_DIR
 cat $meshDir/cgx.out >> $fOut

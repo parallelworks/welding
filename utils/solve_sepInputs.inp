@@ -1,0 +1,30 @@
+*include, input=all.msh
+** equations for tied thermomech contact
+*include, input=bead_contSurf123.equ
+*include, input=bead_contSurf.equ
+*include, input=beadSolid.nam
+*include, input=plateSolid.nam
+
+**constraints
+*boundary
+*include, input=fixPointOnPlate_123.bou
+
+** material definition
+*include, input=materialLib.mat
+*solid section, elset=EbeadSolid, material=x6
+*solid section, elset=EplateSolid, material=steel2
+*initial conditions, type=temperature
+Nall,0
+
+*step
+*UNCOUPLED TEMPERATURE-DISPLACEMENT
+0.001,2
+
+*dflux,OP=NEW
+Eall,BFNU,1.
+
+*node file
+NT,U
+*el file
+S,HFL
+*end step
