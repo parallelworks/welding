@@ -7,3 +7,5 @@
 /tmp
 /outputs
 /testDir/
+/outputs.backup/
+/case0metrics_fast.csv
