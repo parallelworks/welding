@@ -1,0 +1,11 @@
+read mesh_OUT.inp
+send all abq
+send all abq nam
+comp bead_outSurf do
+send bead_outSurf abq dflux 1
+send bead_contSurf plt_contSurf abq areampc 123
+send bead_contSurf plt_contSurf abq areampc 123
+sys cp bead_contSurf.equ bead_contSurf123.equ
+send bead_contSurf plt_contSurf abq areampc t
+send fixPointOnPlate abq spc 123
+

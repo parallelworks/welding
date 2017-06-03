@@ -215,7 +215,7 @@ try:
     os.makedirs(os.path.dirname(meshFileName))
   Mesh_1.ExportUNV( meshFileName)
 except:
-  print 'ExportUNV() failed. Invalid file name?'
+  print 'ExportUNV() failed. Invalid file name?', meshFileName
 
 
 if salome.sg.hasDesktop():
