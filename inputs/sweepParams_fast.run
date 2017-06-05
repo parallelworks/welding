@@ -15,7 +15,7 @@ weld_a;0.5
 weld_b;0.5
 weld_c;1.0
 weld_Q;10000.0
-sim_totalTime;0.5
+sim_totalTime;0.3
 sim_dt;0.1
 highResWidth;3.0
 meshScale;1.0
