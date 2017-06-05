@@ -4,7 +4,7 @@ desiredMetricsFile=$2
 pvOutputDir=$3
 outputMetrics=$4
 
-pvpythonExtractScript=utils/extractBox.py
+pvpythonExtractScript=utils/extract_Box_json.py
 pythonPlotScript=utils/plot.py
 
 export PATH=$PATH:$PARAVIEWPATH
