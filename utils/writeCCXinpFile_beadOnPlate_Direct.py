@@ -29,19 +29,16 @@ fCcxInput.write('*solid section, elset=EplateSolid, material=steel2  \n')
 fCcxInput.write('*initial conditions, type=temperature  \n')
 fCcxInput.write('Nall,' + str(Temp0) + '\n')
 fCcxInput.write('  \n'
-                '*TIME POINTS,NAME=T1,GENERATE \n')
-fCcxInput.write('0.0,' + str(TotalTime) + ',' + str(dt) + '\n')
-fCcxInput.write('  \n'
-                '*step,INC=500  \n'
-                '*UNCOUPLED TEMPERATURE-DISPLACEMENT \n')
+                '*step  \n'
+                '*UNCOUPLED TEMPERATURE-DISPLACEMENT, Direct \n')
 fCcxInput.write(str(dt) + ',' + str(TotalTime) + '\n')
 fCcxInput.write('  \n'
                 '*dflux,OP=NEW  \n'
                 'Eall,BFNU,1.  \n'
                 '  \n'
-                '*node file,TIMEPOINTS=T1  \n'
+                '*node file  \n'
                 'NT,U  \n'
-                '*el file,TIMEPOINTS=T1   \n'
+                '*el file  \n'
                 'S,HFL  \n'
                 '*end step  \n'
                 ' \n')
