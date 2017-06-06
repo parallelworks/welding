@@ -61,7 +61,8 @@ app (file ccxBin, file dfluxfile) compileCcx (file writeFortranFileScript, file 
     bash "utils/compileCcx3.sh" filename(writeFortranFileScript) filename(fsimParams) caseDir;
 }
 
-app (file MetricsOutput, file[] fpngs, file fOut, file ferr) runSimExtractMetrics (file ccxBin, file fmsh4ccx,
+app (file MetricsOutput, file[] fpngs, file fOut, file ferr, file fsol) 
+                                            runSimExtractMetrics (file ccxBin, file fmsh4ccx,
                                                                   file fInp, file matLibFile, file metrics2extract,
                                                                   string extractOutDir, file utils[]){
     bash "utils/runSimPVExtract.sh" filename(ccxBin)  filename(fInp) filename(metrics2extract) extractOutDir
@@ -123,7 +124,10 @@ foreach ccxBin,i in ccxBinaries{
     file fextractPng[]	 <filesys_mapper;location=extractOutDir>;	
 	file fRunOut       <strcat(logsDir, "extractRun", i, ".out")>;
 	file fRunErr       <strcat(errorsDir, "extractRun", i ,".err")>;
-    (MetricsOutput, fextractPng, fRunOut, fRunErr) = runSimExtractMetrics(ccxBin, fmeshes[i], fCcxInpFiles[i],
+
+	file fsol         <strcat(trimSuffix(filename(fCcxInpFiles[i])),".exo")>;
+
+    (MetricsOutput, fextractPng, fRunOut, fRunErr, fsol) = runSimExtractMetrics(ccxBin, fmeshes[i], fCcxInpFiles[i],
                                                                           materialLibFile, metrics2extract,
                                                                           extractOutDir, utils);
 }
