@@ -1,6 +1,6 @@
 Length;12.0
 Height;1.0
-Width1;3.0 4.0
+Width1;3.0
 Width2;7.0
 EllipseW;2.0
 EllipseH;1.0
@@ -14,9 +14,9 @@ weld_vz;0.0
 weld_a;0.5
 weld_b;0.5
 weld_c;1.0
-weld_Q;10000.0
-sim_totalTime;0.3
+weld_Q;5000.0
+sim_totalTime;0.4
 sim_dt;0.1
-highResWidth;3.0
+highResWidth;2.0
 meshScale;1.0
-meshScaleBead;0.5
+highResMeshScale;0.2

@@ -5,7 +5,6 @@ type file;
 # ------ INPUT / OUTPUT DEFINITIONS -------#
 
 string sweepParamsFileName  = arg("sweepParamFile", "sweepParams.run");
-string simParamsFileName    = arg("simParamsFile", "boxSimFile");
 
 file fsweepParams		    <strcat("inputs/",sweepParamsFileName)>;
 
@@ -24,7 +23,7 @@ file meshScript             <"utils/beadOnPlate_inputFile.py">;
 file preFbdFile             <"utils/bead_pre.fbd">;
 file getCcxInpScript        <"utils/writeCCXinpFile_beadOnPlate.py">;
 file writeFortranFileScript <"utils/writeDFluxFile.py">;
-file materialLibFile        <"inputs/materialLib.mat">;  
+file materialLibFile        <"inputs/materialLib.mat">;  # Also need to change the ccx input file changing the name
 file metrics2extract        <"inputs/beadOnPlateKPI_short.json">;
 
 file utils[] 		        <filesys_mapper;location="utils", pattern="*.*">;

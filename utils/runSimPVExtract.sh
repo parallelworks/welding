@@ -12,7 +12,7 @@ pvpythonExtractScript=utils/extract_Box_json.py
 pythonPlotScript=utils/plot.py
 
 #PARAVIEWPATH="/home/marmar/programs-local/ParaView-5.3.0-Qt5-OpenGL2-MPI-Linux-64bit/bin/"
-export PATH=$PATH:$PARAVIEWPATH
+#export PATH=$PATH:$PARAVIEWPATH
 
 execDir=$(dirname "${ccxInputFile}")
 ccxfilename=$(basename "$ccxInputFile")
@@ -38,7 +38,10 @@ cd $WORK_DIR
 # Extract metrics from results file
 
 resultsExoFile=$execDir/$ccxfileRootName.exo
-xvfb-run -a --server-args="-screen 0 1024x768x24" pvpython  $pvpythonExtractScript  $resultsExoFile $desiredMetricsFile  $pvOutputDir $outputMetrics
+
+# If opengl is old : 
+# xvfb-run -a --server-args="-screen 0 1024x768x24" pvpython --mesa-llvm  $pvpythonExtractScript  $resultsExoFile $desiredMetricsFile  $pvOutputDir $outputMetrics
+xvfb-run -a --server-args="-screen 0 1024x768x24" $PARAVIEWPATH/pvpython  $pvpythonExtractScript  $resultsExoFile $desiredMetricsFile  $pvOutputDir $outputMetrics
 
 
 #convert -delay 15 -loop 0  $pngDir/*.png $animFile

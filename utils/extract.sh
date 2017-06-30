@@ -7,9 +7,10 @@ outputMetrics=$4
 pvpythonExtractScript=utils/extract_Box_json.py
 pythonPlotScript=utils/plot.py
 
-export PATH=$PATH:$PARAVIEWPATH
 
-xvfb-run -a --server-args="-screen 0 1024x768x24" pvpython  $pvpythonExtractScript  $resultsExoFile $desiredMetricsFile  $pvOutputDir $outputMetrics
+# If opengl is old : 
+# xvfb-run -a --server-args="-screen 0 1024x768x24" pvpython --mesa-llvm  $pvpythonExtractScript  $resultsExoFile $desiredMetricsFile  $pvOutputDir $outputMetrics
+xvfb-run -a --server-args="-screen 0 1024x768x24" $PARAVIEWPATH/pvpython  $pvpythonExtractScript  $resultsExoFile $desiredMetricsFile  $pvOutputDir $outputMetrics
 
 #convert -delay 15 -loop 0  $pngDir/*.png $animFile
 
