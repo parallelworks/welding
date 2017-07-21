@@ -42,14 +42,11 @@ app (file cases, file[] simFileParams) writeCaseParamFiles (file sweepParams, st
 	python "utils/writeSimParamFiles.py" filename(cases) simFilesDir "caseParamFile";
 }
 
-app (file fmesh, file ferr, file fout, file salPort) makeMesh (file meshScript, int caseindex, file utils[], 
+app (file fmesh, file ferr, file fout) makeMesh (file meshScript, int caseindex, file utils[], 
                                                                file fsimParams, file preFbdFile) {
-    bash "utils/runSalomeUnicalCgx.sh" caseindex  filename(salPort) filename(meshScript) filename(fsimParams)
-         filename(fmesh) filename(preFbdFile) filename(fout) filename(ferr);
-}
-
-app (file ferr, file fout) killSalomeInstance (file[] fmeshes, file salPort, file utils[]){
-    bash "utils/killSalome.sh" filename(salPort)  stderr=filename(ferr) stdout=filename(fout); 
+    bashSalome "utils/runSalome.sh" caseindex  filename(meshScript) filename(fsimParams)
+         filename(fmesh) filename(fout) filename(ferr);
+    bashCGX "utils/runUnicalCgx.sh" caseindex filename(fmesh) filename(preFbdFile) filename(fout) filename(ferr);
 }
 
 app (file fccxInp) getCcxInp (file getCcxInpScript, file fsimParams, file utils[]){
@@ -77,22 +74,12 @@ file[] simFileParams        <filesys_mapper; location = simFilesDir>;
 
 
 file[] fmeshes;
-file[] salPortFiles;
 foreach fsimParams,i in simFileParams{
-    file fsalPortLog   <strcat(salPortsDir, "salomePort", i, ".log")>;
     file meshErr       <strcat(errorsDir, "mesh", i, ".err")>;                          
     file meshOut       <strcat(logsDir, "mesh", i, ".out")>;                          
    	file fmesh  	   <strcat(meshFilesDir, i, "/allinone.inp")>;
-    (fmesh, meshErr, meshOut, fsalPortLog) = makeMesh(meshScript, i, utils, fsimParams, preFbdFile);
+    (fmesh, meshErr, meshOut) = makeMesh(meshScript, i, utils, fsimParams, preFbdFile);
     fmeshes[i] = fmesh;
-    salPortFiles[i] = fsalPortLog;
-}
-
-# Terminate Salome instances after done with generating all mesh files
-foreach fsalPort,i in salPortFiles{
-    file salKillErr     <strcat(errorsDir, "salomeKill",i,".err")>;                          
-    file salKillOut     <strcat(logsDir, "salomeKill",i,".out")>;                          
-    (salKillErr, salKillOut) =  killSalomeInstance(fmeshes,  fsalPort, utils);
 }
 
 # Generate ccx input (.inp) files
