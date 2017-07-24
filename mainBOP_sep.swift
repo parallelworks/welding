@@ -61,8 +61,10 @@ app (file MetricsOutput, file[] fpngs, file fOut, file ferr, file fsol)
                                             runSimExtractMetrics (file ccxBin, file fmsh4ccx,
                                                                   file fInp, file matLibFile, file metrics2extract,
                                                                   string extractOutDir, file utils[]){
-    bash "utils/runSimPVExtract.sh" filename(ccxBin)  filename(fInp) filename(metrics2extract) extractOutDir
-         filename(MetricsOutput) filename(matLibFile) stderr=filename(ferr) stdout=filename(fOut);
+    bashRunSim "utils/runSim.sh" filename(ccxBin)  filename(fInp) filename(matLibFile) 
+                stderr=filename(ferr) stdout=filename(fOut);
+    bashPVExtract  "utils/PVExtract.sh" filename(fInp) filename(metrics2extract) extractOutDir
+         filename(MetricsOutput) stderr=filename(ferr) stdout=filename(fOut);
 }
  
 #----------------workflow-------------------#
