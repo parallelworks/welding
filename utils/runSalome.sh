@@ -6,17 +6,15 @@ allinoneFile=$4
 fOut=$5
 fErr=$6
 
-#export PATH=$PATH:$SALOMEPATH:$UNICALPATH:$CGXPATH
 
 if [ "$embeddedDocker" = true ] ; then
-    run_command="docker run --rm  -i -v `pwd`:/scratch -w /scratch -u $(id -u):$(id -g) marmarm/salome:v8_2u /bin/bash"
+    run_command="docker run --rm  -i -v `pwd`:/scratch -w /scratch -u 0:0 marmarm/salome:v8_2u /bin/bash"
+    SALOMEPATH=""
 else
     run_command="/bin/bash"
 fi
 
-
 # Make sure the directories exist
-
 WORK_DIR=$(pwd)
 meshDir=$(dirname "${allinoneFile}")
 mkdir -p $meshDir

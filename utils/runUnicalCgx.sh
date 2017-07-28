@@ -5,7 +5,13 @@ prefbdFile=$3
 fOut=$4
 fErr=$5
 
-export PATH=$PATH:$SALOMEPATH:$UNICALPATH:$CGXPATH
+
+if [ "$embeddedDocker" = true ] ; then
+    run_command="docker run --rm -i -v `pwd`:/scratch -w /scratch -u 0:0 avidalto/calculix:v11" 
+else
+	run_command=""
+fi
+
 
 # Make sure the directories exist
 
@@ -27,17 +33,25 @@ AbqMeshFile=$meshDir/mesh_OUT.inp # !!! Make sure the name matches the name of t
 
 printf '\nUnical output \n------------\n' >> $fOut
 printf '\nUnical errors \n------------\n' >> $fErr
-unical $unvMeshFile $AbqMeshFile 1>>$fOut 2>>$fErr
+
+echo "run_command: "  $run_command >> $fOut
+$run_command ${UNICALPATH}unical $unvMeshFile $AbqMeshFile 1>>$fOut 2>>$fErr
 
 # Generate the files required by ccx from mesh_OUT.inp
-
 printf '\ncgx output \n------------\n' >> $fOut
 printf '\ncgx errors \n------------\n' >> $fErr
 cp $prefbdFile $meshDir/
 cd $meshDir/ 
 prefbdFileName=$(basename $prefbdFile)
 allinoneFileName=$(basename $allinoneFile)
-cgx_2.12  -bg $prefbdFileName 1>>cgx.out 2>>cgx.err
+
+if [ "$embeddedDocker" = true ] ; then
+    run_command="docker run --rm -i -v `pwd`:/scratch -w /scratch -u 0:0 avidalto/calculix:v11" 
+else
+	run_command=""
+fi
+
+$run_command   ${CGXPATH}cgx_2.12 -bg $prefbdFileName 1>>cgx.out 2>>cgx.err
 
 # Combine all required mesh/abaqus files into a single file
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

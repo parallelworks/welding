@@ -27,9 +27,14 @@ chmod +x  $CcxExec
 
 
 # Run simulation with EXODUSII output for ParaView 
-
+if [ "$embeddedDocker" = true ] ; then
+	cp $WORK_DIR/$CcxExec $execDir
+	ccxBinName=$(basename "$CcxExec")
+    cd $execDir
+    docker run --rm -i -v `pwd`:/scratch -w /scratch -u $(id -u):$(id -g) avidalto/calculix:v8 ./$ccxBinName $ccxfileRootName -o exo
+    cd $WORK_DIR    
+else
 cd $execDir
 $WORK_DIR/$CcxExec  $ccxfileRootName  -o exo
 cd $WORK_DIR
-
-
+fi
