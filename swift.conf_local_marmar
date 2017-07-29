@@ -227,6 +227,7 @@ site.local {
 	}
 	
 	workDirectory: "swiftwork"
+	scratch: "/home/marmar/scratch/parallelWorks/weldingProject/welding-alvaro/jobs" 
 	
 	app.ALL {
         env.SALOMEPATH: "/home/marmar/programs-local/SALOME-8.2.0-UB14.04/"
@@ -234,22 +235,19 @@ site.local {
         env.UNICALPATH: "/home/marmar/programs-local/CalculiXLauncher-03beta2-64bit-linux/bin/"
         env.CGXPATH: "/home/marmar/programs-local/CalculiX-excutalbes/"
 		executable: "*"
+		env.embeddedDocker:"false"
 	}
     app.bashSalome {
         executable:"/bin/bash"
-		env.embeddedDocker:"false"
 	}
     app.bashCGX {
         executable:"/bin/bash"
-		env.embeddedDocker:"false"
 	}
     app.bashRunSim {
         executable:"/bin/bash"
-		env.embeddedDocker:"false"
 	}
     app.bashPVExtract {
         executable:"/bin/bash"
-		env.embeddedDocker:"false"
 	}
 
 }
