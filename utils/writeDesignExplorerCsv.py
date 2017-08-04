@@ -26,7 +26,7 @@ if len(sys.argv) < 5:
           "<desiredMetrics.json> <basepath> <designExplorer.csv> \n"
           "[ImageDirRoot=\"outputs/png\"] [ResultsDirRoot=\"outputs/case\"] "
           "[outputParamsDesiredStatsFile]"
-          "[extractedFileName = \"metrics.csv\"] [params2ignore] [writeSingleValuedInputs=False]" )
+          "[extractedFileName = \"metrics.csv\"] [params2ignore]" )
 
     sys.exit()
 
@@ -38,14 +38,15 @@ imagesdir = data_IO.setOptionalSysArgs(sys.argv, "outputs/png", 5)
 resultsDirRootName = data_IO.setOptionalSysArgs(sys.argv, "outputs/case", 6)
 outputParamStatsFile = data_IO.setOptionalSysArgs(sys.argv, '', 7)
 
-ignoreList_default = ['PMV0', 'PPD0', 'WriteIntervalTime', 'ZoneRefineLevel', 'comfort_CLO', 'comfort_MET', 'comfort_RH', 'comfort_WME',
-     'comfort_ZULUFT', 'main_Floor_T', 'main_Floor_gradT']
+# ignoreList_default = ['Width2', 'weld_c', 'Length', 'highResMeshScale', 'Temp0', 'weld_vx', 'weld_Q',
+#                       'weld_a', 'Width1', 'sim_totalTime', 'EllipseW', 'EllipseH', 'meshScale', 'weld_b', 'sim_dt',
+#                       'weld_x0', 'weld_z0', 'weld_vz', 'weld_y0', 'highResWidth', 'weld_vy']
+ignoreList_default = ['']
 ignoreList_default = ",".join(ignoreList_default)
 ignoreList = data_IO.setOptionalSysArgs(sys.argv, ignoreList_default, 8)
 ignoreSet = set(ignoreList.split(","))
 
 extractedFileName = data_IO.setOptionalSysArgs(sys.argv, "metrics.csv", 9)
-writeSingleValueInputs = data_IO.str2bool(data_IO.setOptionalSysArgs(sys.argv, "False", 10))
 
 
 # Read the input parameters from the cases.list file (also works with a sweep.run file but

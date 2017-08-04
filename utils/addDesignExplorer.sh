@@ -10,7 +10,7 @@ pngOutDirRoot=$6
 caseDirRoot=$7
 outputsList4DE=$8
 
-colorby="sliceNT"
+colorby="sliceNT_ave"
 
 echo $@
 
