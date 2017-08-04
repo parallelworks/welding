@@ -50,7 +50,7 @@ writeSingleValueInputs = data_IO.str2bool(data_IO.setOptionalSysArgs(sys.argv, "
 
 # Read the input parameters from the cases.list file (also works with a sweep.run file but
 # make sure the order is the same as cases.list files used for running the cases)
-cases = paramUtils.readParamsFile(paramsFile)
+cases = paramUtils.readParamsFile(paramsFile,'=')
 print(" Read " + str(len(cases)) + " Cases")
 
 # Get the list of input parameters from the first case

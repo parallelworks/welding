@@ -8,6 +8,10 @@ string sweepParamsFileName  = arg("sweepParamFile", "sweepParams_fast.run");
 
 file fsweepParams		    <strcat("inputs/",sweepParamsFileName)>;
 
+file outhtml <arg("html","DE.html")>;
+file outcsv <arg("csv","DE.csv")>;
+
+
 # directory definitions
 string outDir               = "outputs/";
 string errorsDir            = strcat(outDir, "errorFiles/");
@@ -16,7 +20,10 @@ string salPortsDir          = strcat(logsDir, "salPortNums/");
 string simFilesDir          = strcat(outDir, "simParamFiles/");
 #string meshFilesDir         = strcat(outDir, "meshFiles/case"); 
 string meshFilesDir         = strcat(outDir, "case"); 
+string pngOutDirRoot        = strcat(outDir,"png/");
+string caseDirRoot          = strcat(outDir, "case"); 
 
+string runPath = getEnv("PWD");
 
 # Script files and utilities
 file meshScript             <"utils/beadOnPlate_inputFile.py">;
@@ -25,6 +32,7 @@ file getCcxInpScript        <"utils/writeCCXinpFile_beadOnPlate.py">;
 file writeFortranFileScript <"utils/writeDFluxFile.py">;
 file materialLibFile        <"inputs/materialLib.mat">;  # Also need to change the ccx input file changing the name
 file metrics2extract        <"inputs/beadOnPlateKPI_short.json">;
+file outputsList4DE         <"DEoutputParams.txt">;
 
 file utils[] 		        <filesys_mapper;location="utils", pattern="?*.*">;
 
@@ -66,6 +74,12 @@ app (file MetricsOutput, file[] fpngs, file fOut, file ferr, file fsol)
     bashPVExtract  "utils/PVExtract.sh" filename(fInp) filename(metrics2extract) extractOutDir
          filename(MetricsOutput) stderr=filename(ferr) stdout=filename(fOut);
 }
+
+app (file outcsv, file outhtml, file so, file se) designExplorer (string runPath, file caselist, file metrics2extract, string pngOutDirRoot, string caseDirRoot, file[] MetricsFiles, file outputsList4DE, file utils[])
+{
+  bash "utils/addDesignExplorer.sh" filename(outcsv) filename(outhtml) runPath  filename(caselist) filename(metrics2extract) pngOutDirRoot caseDirRoot filename(outputsList4DE) stdout=filename(so) stderr=filename(se);
+}
+
  
 #----------------workflow-------------------#
 
@@ -88,7 +102,7 @@ foreach fsimParams,i in simFileParams{
 file[] fCcxInpFiles;
 string[] caseOutDirs;
 foreach fsimParams,i in simFileParams{
-	caseOutDirs[i]   = strcat(outDir, "case", i,"/");
+	caseOutDirs[i]   = strcat(caseDirRoot, i,"/");
 	file finp        <strcat(caseOutDirs[i], "solve.inp")>;
 	finp = getCcxInp(getCcxInpScript, fsimParams, utils);
 	fCcxInpFiles[i] = finp;
@@ -106,10 +120,11 @@ foreach fsimParams,i in simFileParams{
 }
 
 # Run ccx and extract metrics for each case
+file[] MetricsFiles;
 foreach ccxBin,i in ccxBinaries{
     file MetricsOutput  <strcat(caseOutDirs[i], "metrics.csv")>;
-    string extractOutDir = strcat(outDir,"png/",i,"/");
-    file fextractPng[]	 <filesys_mapper;location=extractOutDir>;	
+    string pngOutDir = strcat(pngOutDirRoot,"/",i,"/");
+    file fextractPng[]	 <filesys_mapper;location=pngOutDir>;	
 	file fRunOut       <strcat(logsDir, "extractRun", i, ".out")>;
 	file fRunErr       <strcat(errorsDir, "extractRun", i ,".err")>;
 
@@ -117,5 +132,12 @@ foreach ccxBin,i in ccxBinaries{
 
     (MetricsOutput, fextractPng, fRunOut, fRunErr, fsol) = runSimExtractMetrics(ccxBin, fmeshes[i], fCcxInpFiles[i],
                                                                           materialLibFile, metrics2extract,
-                                                                          extractOutDir, utils);
+                                                                          pngOutDir, utils);
+    MetricsFiles[i] = MetricsOutput;                                                                       
 }
+
+file fDEout       <strcat(logsDir, "DE.out")>; 
+file fDEerr       <strcat(errorsDir, "DE.err")>;
+
+
+(outcsv,outhtml,fDEout, fDEerr) = designExplorer(runPath, caseFile, metrics2extract, pngOutDirRoot, caseDirRoot, MetricsFiles, outputsList4DE, utils);

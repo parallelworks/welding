@@ -111,12 +111,12 @@ def readcasesfromcsv(casesFile,paramValDelim=','):
     return cases
 
 
-def readParamsFile(paramsFile):
+def readParamsFile(paramsFile, paramValDelim=','):
     paramsFileType = getParamTypeFromfileAddress(paramsFile)
     if paramsFileType == 'paramFile':
         cases = readCases(paramsFile)
     else:
-        cases = readcasesfromcsv(paramsFile)
+        cases = readcasesfromcsv(paramsFile, paramValDelim)
     return cases
 
 
