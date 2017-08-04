@@ -14,8 +14,22 @@ colorby="sliceNT_ave"
 
 echo $@
 
-basedir="$(echo /download$rpath | sed "s|/efs/job_working_directory||g" )"
-DEbase="/preview"  
+
+# if [ -d "/mnt/hgfs/core" ];then
+#     basedir="$(echo $rpath | sed 's|/mnt/hgfs/core||g')"
+# elif [[ "$rpath" == *"/efs/job_working_directory"* ]];then
+#     # adjust this for pw download path
+    basedir="$(echo /download$rpath | sed "s|/efs/job_working_directory||g" )"
+# else
+#     basedir="$rpath"
+# fi
+if [[ "$rpath" == *"/efs/job_working_directory"* ]];then
+	basedir="$(echo /download$rpath | sed "s|/efs/job_working_directory||g" )"
+	DEbase="/preview"  
+else
+	basedir="$(echo /download$rpath | sed "s|/export/galaxy-central/database/job_working_directory||g" )"
+	DEbase="/preview"  
+fi 
 
 # Works with both python2 and python3 
 python utils/writeDesignExplorerCsv.py $caseslistFile $metrics_json $basedir output.csv $pngOutDirRoot $caseDirRoot $outputsList4DE

@@ -196,6 +196,7 @@ def getOutImgsFromKPI(kpiFile):
     kpihash = data_IO.byteify(kpihash)
     fp_jsonIn.close()
     outputPNGs= []
+    outputPNG_types = []
     for kpi in orderPreservedKeys:
         metrichash = kpihash[kpi]
         if 'image' in metrichash:
@@ -205,7 +206,8 @@ def getOutImgsFromKPI(kpiFile):
 
         if kpiimage != "None" and kpiimage != "":
             outputPNGs.append(kpi)
-    return outputPNGs
+            outputPNG_types.append(kpiimage)
+    return outputPNGs,outputPNG_types
 
 
 def getOutputParamsStatList(outputParamsFileAddress, outputParamNames, stats2include=['ave','min','max']):
@@ -257,11 +259,16 @@ def writeOutputParamVals2caselist(cases, resultsDirRootName, extractedFileName, 
     return caselist
 
 
-def writeImgs2caselist(cases, outImgList, basePath, pngsDirRel2BasePath, caselist):
+def writeImgs2caselist(cases, outImgList, imgTypes, basePath, pngsDirRel2BasePath, caselist):
     for icase, case in enumerate(cases):
         caseOutStr = ""
-        for pngFile in outImgList:
-            caseOutStr += "," + basePath + "/" + pngsDirRel2BasePath + str(icase) + "/out_" + pngFile + ".png"
+        for iPng, pngFile in enumerate(outImgList):
+            if imgTypes[iPng] == "plot":
+                imgPrefix = "plot_"
+            else:
+                imgPrefix = "out_"
+
+            caseOutStr += "," + basePath + "/" + pngsDirRel2BasePath + str(icase) + "/" + imgPrefix + pngFile + ".png"
         caselist[icase] += caseOutStr
     return caselist
 

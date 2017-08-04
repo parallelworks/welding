@@ -73,13 +73,13 @@ caselist = paramUtils.writeOutputParamVals2caselist(
     cases, resultsDirRootName, extractedFileName, outParamTable, caselist)
 
 # Get the list of desired images
-outImgList = paramUtils.getOutImgsFromKPI(kpiFile)
+imgList, imgTypes = paramUtils.getOutImgsFromKPI(kpiFile)
 outputParamNames = list(set(outputParamNames)-ignoreSet)
 
-caselist = paramUtils.writeImgs2caselist(cases, outImgList, basepath, imagesdir, caselist)
+caselist = paramUtils.writeImgs2caselist(cases, imgList, imgTypes, basepath, imagesdir, caselist)
 
 # Write the header of the DE csv file
-header = paramUtils.generateHeader(inputVarNames, outParamTable, outImgList)
+header = paramUtils.generateHeader(inputVarNames, outParamTable, imgList)
 
 # Write the Design Explorer csv file:
 paramUtils.writeDesignExplorerCSVfile(deCSVFile, header, caselist)
