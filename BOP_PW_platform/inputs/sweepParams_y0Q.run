@@ -1,0 +1,21 @@
+Length;10.0
+Height;1.0
+Width;10.0
+weld_x0;-5.0
+weld_y0;-2.0 0.0
+weld_z0;0.0
+weld_x1;5.0
+weld_y1;2.0
+weld_z1;0.0
+weld_vx;10.0
+weld_vy;4.0
+weld_vz;0.0
+weld_a;0.5
+weld_b;0.5
+weld_c;1.0
+weld_Q;5000.0:10000.0:2000.0
+sim_totalTime;0.5
+sim_dt;0.1
+highResWidth;3.0
+meshScale;1.0
+

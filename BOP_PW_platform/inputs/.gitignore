@@ -1,0 +1,5 @@
+*~
+*.step
+*.list
+/materialLib.mat.backup
+/sweepParams_test.run
