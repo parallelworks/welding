@@ -227,7 +227,7 @@ site.local {
 	}
 	
 	workDirectory: "swiftwork"
-	scratch: "/home/marmar/scratch/parallelWorks/weldingProject/welding-alvaro/jobs" 
+	scratch: "/home/marmar/Dropbox/parallelWorks/weldingProject/welding-github/jobs" 
 	
 	app.ALL {
         env.SALOMEPATH: "/home/marmar/programs-local/SALOME-8.2.0-UB14.04/"

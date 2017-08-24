@@ -46,8 +46,9 @@ file mexdex[] 		        <filesys_mapper;location="mexdex", pattern="?*.*">;
 
 # ------ APP DEFINITIONS --------------------#
 
-app (file cases, file[] simFileParams) writeCaseParamFiles (file sweepParams, string simFilesDir, file[] mexdex, file[] utils) {
-    python2 "mexdex/prepinputs.py" "--SR_valueDelimiter" " " "--SR_paramsDelimiter" "\n" "--noParamTag" "--CL_paramValueDelimiter" "="  filename(sweepParams) filename(cases);
+app (file cases, file[] simFileParams, file so, file se) writeCaseParamFiles (file sweepParams, string simFilesDir, file[] mexdex, file[] utils) {
+#	python2 "utils/expandSweep.py" filename(sweepParams) filename(cases);
+    python2 "mexdex/prepinputs.py" "--SR_valueDelimiter" " " "--SR_paramsDelimiter" "\n" "--noParamTag" "--CL_paramValueDelimiter" "="  filename(sweepParams) filename(cases) stdout=filename(so) stderr=filename(se);
 	python "utils/writeSimParamFiles.py" filename(cases) simFilesDir "caseParamFile";
 }
 
@@ -69,10 +70,10 @@ app (file ccxBin, file dfluxfile) compileCcx (file writeFortranFileScript, file 
 app (file MetricsOutput, file[] fpngs, file fOut, file ferr, file fsol) 
                                             runSimExtractMetrics (file ccxBin, file fmsh4ccx,
                                                                   file fInp, file matLibFile, file metrics2extract,
-                                                                  string extractOutDir, file utils[], file mexdex[]){
+                                                                  string extractOutDir, file utils[]){
     bashRunSim "utils/runSim.sh" filename(ccxBin)  filename(fInp) filename(matLibFile) 
                 stderr=filename(ferr) stdout=filename(fOut);
-    bashPVExtract  "mexdex/PVExtract.sh" filename(fInp) filename(metrics2extract) extractOutDir
+    bashPVExtract  "utils/PVExtract.sh" filename(fInp) filename(metrics2extract) extractOutDir
          filename(MetricsOutput) stderr=filename(ferr) stdout=filename(fOut);
 }
 
@@ -87,58 +88,8 @@ app (file outcsv, file outhtml, file so, file se) designExplorer (string runPath
 # Read parameters from the sweepParams file and write to case files
 file caseFile 	            <strcat(outDir,"cases.list")>;
 file[] simFileParams        <filesys_mapper; location = simFilesDir>;
-(caseFile, simFileParams) = writeCaseParamFiles(fsweepParams, simFilesDir, mexdex, utils);
+file prepCaseListOut       <strcat(logsDir, "prepCaseList.out")>; 
+file prepCaseListErr       <strcat(errorsDir, "prepCaseList.err")>;
 
+(caseFile, simFileParams, prepCaseListOut, prepCaseListErr) = writeCaseParamFiles(fsweepParams, simFilesDir, mexdex, utils);
 
-file[] fmeshes;
-foreach fsimParams,i in simFileParams{
-    file meshErr       <strcat(errorsDir, "mesh", i, ".err")>;                          
-    file meshOut       <strcat(logsDir, "mesh", i, ".out")>;                          
-   	file fmesh  	   <strcat(meshFilesDir, i, "/allinone.inp")>;
-    (fmesh, meshErr, meshOut) = makeMesh(meshScript, i, utils, fsimParams, preFbdFile);
-    fmeshes[i] = fmesh;
-}
-
-# Generate ccx input (.inp) files
-file[] fCcxInpFiles;
-string[] caseOutDirs;
-foreach fsimParams,i in simFileParams{
-	caseOutDirs[i]   = strcat(caseDirRoot, i,"/");
-	file finp        <strcat(caseOutDirs[i], "solve.inp")>;
-	finp = getCcxInp(getCcxInpScript, fsimParams, utils);
-	fCcxInpFiles[i] = finp;
-}
-
-
-# Write dflux.f files and use them to compile ccx files for each case
-# Will most likely remove this part later ....
-file[] ccxBinaries;
-foreach fsimParams,i in simFileParams{
-    file ccxBin               <strcat(caseOutDirs[i], "/ccx-212-patch/src/ccx_2.12")>;
-    file dfluxfile            <strcat(caseOutDirs[i], "/dflux.f")>;
-    (ccxBin, dfluxfile) = compileCcx(writeFortranFileScript, fsimParams, caseOutDirs[i], utils );
-    ccxBinaries[i] = ccxBin;
-}
-
-# Run ccx and extract metrics for each case
-file[] MetricsFiles;
-foreach ccxBin,i in ccxBinaries{
-    file MetricsOutput  <strcat(caseOutDirs[i], "metrics.csv")>;
-    string pngOutDir = strcat(pngOutDirRoot,"/",i,"/");
-    file fextractPng[]	 <filesys_mapper;location=pngOutDir>;	
-	file fRunOut       <strcat(logsDir, "extractRun", i, ".out")>;
-	file fRunErr       <strcat(errorsDir, "extractRun", i ,".err")>;
-
-	file fsol         <strcat(trimSuffix(filename(fCcxInpFiles[i])),".exo")>;
-
-    (MetricsOutput, fextractPng, fRunOut, fRunErr, fsol) = runSimExtractMetrics(ccxBin, fmeshes[i], fCcxInpFiles[i],
-                                                                          materialLibFile, metrics2extract,
-                                                                          pngOutDir, utils, mexdex);
-    MetricsFiles[i] = MetricsOutput;                                                                       
-}
-
-file fDEout       <strcat(logsDir, "DE.out")>; 
-file fDEerr       <strcat(errorsDir, "DE.err")>;
-
-
-(outcsv,outhtml,fDEout, fDEerr) = designExplorer(runPath, caseFile, metrics2extract, pngOutDirRoot, caseDirRoot, MetricsFiles, outputsList4DE, mexdex);

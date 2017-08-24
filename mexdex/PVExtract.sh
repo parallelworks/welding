@@ -6,9 +6,6 @@ outputMetrics=$4
 
 WORK_DIR=$(pwd)
 
-pvpythonExtractScript=utils/extract.py
-pythonPlotScript=utils/plot.py
-
 #PARAVIEWPATH="/home/marmar/programs-local/ParaView-5.3.0-Qt5-OpenGL2-MPI-Linux-64bit/bin/"
 #export PATH=$PATH:$PARAVIEWPATH
 
@@ -27,6 +24,6 @@ else
 fi
 
 echo "#!/bin/bash" > pvpythonRun.sh 
-echo "xvfb-run -a --server-args=\"-screen 0 1024x768x24\" ${PARAVIEWPATH}pvpython --mesa-llvm $pvpythonExtractScript $resultsExoFile $desiredMetricsFile $pvOutputDir $outputMetrics" >> pvpythonRun.sh
+echo "xvfb-run -a --server-args=\"-screen 0 1024x768x24\" ${PARAVIEWPATH}pvpython --mesa-llvm mexdex/extract.py $resultsExoFile $desiredMetricsFile $pvOutputDir $outputMetrics" >> pvpythonRun.sh
 chmod +x pvpythonRun.sh
 $run_command pvpythonRun.sh

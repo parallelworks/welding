@@ -35,7 +35,9 @@ def expandVars(v, RangeDelimiter = ':'):
     v = ','.join(frange(min, max, step))
     return v
 
-def readCases(params, namesdelimiter=";", valsdelimiter="_",paramsdelimiter = "\n", withParamType = True):
+
+def readCases(params, namesdelimiter=";", valsdelimiter="_",
+              paramsdelimiter = "\n", withParamType = True):
     with open(params) as f:
         content = f.read().split(paramsdelimiter)
         if content[-1] == "\n":
@@ -127,7 +129,10 @@ def generateHeader(inputParamNames, outParamTables, outImgList):
         header += "in:" + varName + ","
     header = "".join(header[:-1])
     for paramNameStat in outParamTables:
-        header += ",out:" + paramNameStat[0] + "_" + num2statTable[paramNameStat[1]]
+        outStr = ",out:" + paramNameStat[0]
+        if paramNameStat[1] >= 0:
+            outStr += "_" + num2statTable[paramNameStat[1]]
+        header += outStr
     for pngFile in outImgList:
         header += ",img:" + pngFile
     return header
@@ -165,64 +170,69 @@ def writeInputParamVals2caselist(cases, inputVarNames):
     return caselist
 
 
-def getOutputParamsFromKPI(kpiFile):
-    fp_jsonIn = data_IO.open_file(kpiFile)
-    kpihash = json.load(fp_jsonIn, object_pairs_hook=OrderedDict)
-    orderPreservedKeys = data_IO.byteify(list(kpihash.keys()))
-    kpihash = data_IO.byteify(kpihash)
-    fp_jsonIn.close()
+def getOutputParamsFromKPI(kpihash, orderPreservedKeys):
     outputParams= []
     for kpi in orderPreservedKeys:
         metrichash = kpihash[kpi]
-        kpitype = metrichash['type']
-
-        if kpitype == "StreamLines":
-            metrichash['extractStats'] = "False"
-
-        if 'extractStats' in metrichash:
-            extractStats = data_IO.str2bool(metrichash['extractStats'])
-        else:
-            extractStats = True
+        extractStats = data_IO.str2bool(metrichash['extractStats'])
 
         if extractStats:
             outputParams.append(kpi)
     return outputParams
 
 
-def getOutImgsFromKPI(kpiFile):
-    fp_jsonIn = data_IO.open_file(kpiFile)
-    kpihash = json.load(fp_jsonIn, object_pairs_hook=OrderedDict)
-    orderPreservedKeys = data_IO.byteify(list(kpihash.keys()))
-    kpihash = data_IO.byteify(kpihash)
-    fp_jsonIn.close()
-    outputPNGs= []
-    outputPNG_types = []
+def getOutImgsFromKPI(kpihash, orderPreservedKeys):
+    imgTitles= []
+    imgNames = []
     for kpi in orderPreservedKeys:
         metrichash = kpihash[kpi]
-        if 'image' in metrichash:
-            kpiimage = metrichash['image']
-        else:
-            kpiimage = "None"
+        imageName = metrichash['imageName']
+        if imageName != "None":
+            imgTitles.append(kpi)
+            imgNames.append(imageName)
+        animation = data_IO.str2bool(metrichash['animation'])
+        if animation:
+            imgTitles.append(kpi)
+            imgNames.append(metrichash['animationName'])
 
-        if kpiimage != "None" and kpiimage != "":
-            outputPNGs.append(kpi)
-            outputPNG_types.append(kpiimage)
-    return outputPNGs,outputPNG_types
+    print(imgTitles)
+    print(imgNames)
+    return imgTitles, imgNames
 
 
-def getOutputParamsStatList(outputParamsFileAddress, outputParamNames, stats2include=['ave','min','max']):
+def getOutputParamsStatList(outputParamsFileAddress, outputParamNames,
+                            stats2include=['ave', 'min', 'max']):
     # If the outputParamsFileAddress exists, read the output variables and their desired stats from file
     if outputParamsFileAddress:
-        with open(outputParamsFileAddress) as foutParams:
-            outParamsList = foutParams.read().splitlines()[0]
-            outParamsList = outParamsList.split(',')
+        foutParams = data_IO.open_file(outputParamsFileAddress, 'r')
+        allDesiredOutputs = foutParams.read()
+        allDesiredOutputs = allDesiredOutputs.splitlines()
+
+        # First get the name of parameters to read from metric extraction csv files
+        outParamsFromCSV = allDesiredOutputs[0]
+        outParamsFromCSV = outParamsFromCSV.split(',')
         # Make sure all the varialbes in outputParamsList exist in outputParamNames:
         outParamsList_existIncsv = []
-        for param in outParamsList:
+        for param in outParamsFromCSV:
             paramName = param[:param.find("(")]
             if paramName in outputParamNames:
                 outParamsList_existIncsv.append(param)
         outParamsList = outParamsList_existIncsv
+
+        # Read parameters from other files if provided
+        # The format is:
+        # outputName;outputFileNameTemplate;outputFlag;delimitor;locationInFile
+        #
+        # For example:
+        # pressure_drop;results/case_{:d}_pressure_drop.txt;;" ";1
+        #
+        outParamsFromOtherFiles = []
+        for line in allDesiredOutputs[1:]:
+            if line:
+                outputReadParams = line.split(";")
+                outParamsFromOtherFiles.append(outputReadParams[0])
+        outParamsList.extend(outParamsFromOtherFiles)
+
     else:
         outParamsList =[]
         for paramName in outputParamNames:
@@ -235,40 +245,77 @@ def genOutputLookupTable(outParamsList):
     lookupTable = []
     stat2numTable = {'ave': 0, 'min': 1, 'max': 2}
     for param in outParamsList:
-        paramName = param[:param.find("(")]
-        paramName = paramName.lstrip()
-        statStr = param[param.find("(")+1:param.find(")")]
-        statKey = stat2numTable[statStr.lower()]
-        lookupTable.append([paramName, statKey])
+        if param.find("(") > 0:
+            paramName = param[:param.find("(")]
+            paramName = paramName.lstrip()
+            statStr = param[param.find("(")+1:param.find(")")]
+            statKey = stat2numTable[statStr.lower()]
+            lookupTable.append([paramName, statKey])
+        else:
+            lookupTable.append([param, -1])
     return lookupTable
 
 
-def writeOutputParamVals2caselist(cases, resultsDirRootName, extractedFileName, paramTable, caselist):
+def writeOutputParamVals2caselist(cases, csvTemplateName, paramTable, caselist,
+                                  outputParamsFileAddress ):
     # Read the desired metric from each output file
     for icase, case in enumerate(cases):
-        extractedFile = resultsDirRootName + str(icase) + '/' + extractedFileName
-        fcaseMetrics = data_IO.open_file(extractedFile, 'r')
-        caseOutStr = ""
+        # Read values from the Metrics Extraction file first
+        readMECSVFile = False
+        if any(param[1] >= 0 for param in paramTable):
+            readMECSVFile = True
+        if readMECSVFile:
+            extractedFile = csvTemplateName.format(icase)
+            fcaseMetrics = data_IO.open_file(extractedFile, 'r')
+            caseOutStr = ""
 
-        for param in paramTable:
-            param_icase = data_IO.read_float_from_file_pointer(fcaseMetrics, param[0],
-                                                               ',', param[1])
-            caseOutStr += "," + str(param_icase)
-        caselist[icase] += caseOutStr
-        fcaseMetrics.close()
+            for param in paramTable:
+                if param[1] >=0:
+                    param_icase = data_IO.read_float_from_file_pointer(fcaseMetrics, param[0],
+                                                                       ',', param[1])
+                    caseOutStr += "," + str(param_icase)
+            caselist[icase] += caseOutStr
+            fcaseMetrics.close()
+        if outputParamsFileAddress:
+            foutParams = data_IO.open_file(outputParamsFileAddress, 'r')
+            allDesiredOutputs = foutParams.read()
+            allDesiredOutputs = allDesiredOutputs.splitlines()
+            # Read parameters from other files if provided
+            # The format is:
+            # outputName;outputFileNameTemplate;outputFlag;delimitor;locationInFile
+            #
+            # For example:
+            # pressure_drop;results/case_{:d}_pressure_drop.txt;;" ";1
+
+            # outputName;outputFileNameTemplate;delimitor;locationInFile
+            #
+            # For example:
+            # pressure_drop;results/case_{:d}_pressure_drop.txt; ;1
+            caseOutStr = ""
+            for param in paramTable:            
+                if param[1] == -1:
+                    outFile = data_IO.read_str_from_strList(allDesiredOutputs,param[0], ";", 0, 0)
+                    outFile = outFile.format(icase)
+                    foutFile = data_IO.open_file(outFile,'r')
+                    outFileParamFlag = data_IO.read_str_from_strList(allDesiredOutputs,param[0], ";", 1, 0)
+                    outFileDelimiter = data_IO.read_str_from_strList(allDesiredOutputs,param[0], ";", 2, 0)[1]
+                    locnInOutFile = int(data_IO.read_str_from_strList(allDesiredOutputs,param[0], ";", 3, 0))
+                    param_icase = data_IO.read_float_from_file_pointer(foutFile, outFileParamFlag,
+                                                                       outFileDelimiter, locnInOutFile)
+                    caseOutStr += "," + str(param_icase)
+            caselist[icase] += caseOutStr
+
     return caselist
 
 
-def writeImgs2caselist(cases, outImgList, imgTypes, basePath, pngsDirRel2BasePath, caselist):
+def writeImgs2caselist(cases, outImgList, imgNames, basePath, pngsDirRel2BasePath, caselist):
     for icase, case in enumerate(cases):
         caseOutStr = ""
         for iPng, pngFile in enumerate(outImgList):
-            if imgTypes[iPng] == "plot":
-                imgPrefix = "plot_"
-            else:
-                imgPrefix = "out_"
+            imageName = imgNames[iPng].format(icase)
 
-            caseOutStr += "," + basePath + "/" + pngsDirRel2BasePath + str(icase) + "/" + imgPrefix + pngFile + ".png"
+            caseOutStr += "," + basePath + "/" + pngsDirRel2BasePath.format(icase) +\
+                          "/" + imageName
         caselist[icase] += caseOutStr
     return caselist
 
@@ -334,4 +381,3 @@ def writeXMLPWfile(case, paramTypes, xmlFile, helpStr = 'Whitespace delimited or
     f.write("</tool> \n")
     f.close()
     return paramsBytype
-

@@ -5,31 +5,11 @@ import os
 import subprocess
 import shutil
 
-
 # For saving plots as pngs
 import matplotlib
 
 import numpy as np
 import warnings
-
-def byteify(input):
-    """
-    Got this function from https://stackoverflow.com/questions/2357230/what-is-the-proper-way-to-comment-functions-in-python
-    "This short and simple recursive function will convert any decoded JSON object from using unicode strings to 
-    UTF-8-encoded byte strings"
-    This is not the most efficient solution. See the code provided by Mirec Miskuf to see how to use an object_hook to 
-    do this more efficiently.
-    """
-    if isinstance(input, dict):
-        return {byteify(key): byteify(value)
-                for key, value in input.iteritems()}
-    elif isinstance(input, list):
-        return [byteify(element) for element in input]
-    elif isinstance(input, unicode):
-        return input.encode('utf-8')
-    else:
-        return input
-
 
 def getParaviewVersion():
     """ Return paraview version as a double number: e.g. 5.4"""
@@ -40,11 +20,11 @@ def getParaviewVersion():
 
 
 def planeNormalFromName(planeName):
-    if planeName == "X" or planeName == "x":
+    if planeName.lower() == "x":
         normal = [1.0, 0.0, 0.0]
-    if planeName == "Y" or planeName == "y":
+    if planeName.lower() == "y":
         normal = [0.0, 1.0, 0.0]
-    if planeName == "Z" or planeName == "z":
+    if planeName.lower() == "z":
         normal = [0.0, 0.0, 1.0]
     return normal
 
@@ -76,10 +56,10 @@ def read_csv(f):
 def getfieldsfromkpihash(kpihash):
     cellsarrays = []
     for kpi in kpihash:
-        cellsarrays.append(kpihash[kpi]['field'])
+        if 'field' in kpihash[kpi]:
+            cellsarrays.append(kpihash[kpi]['field'])
 
     ca = set(cellsarrays)
-
     cellsarrays = list(ca)
     return cellsarrays
 
@@ -117,6 +97,69 @@ def getdatarange(datasource, kpifld, kpifldcomp):
     return datarange
 
 
+def extractStatsOld(d, kpi, kpifield, kpiComp, kpitype, fp_csv_metrics, ave=[]):
+    datarange = getdatarange(d, kpifield, kpiComp)
+    if kpitype == "Probe":
+        average=(datarange[0]+datarange[1])/2
+    elif kpitype == "Line":
+        average=ave
+    elif kpitype == "Slice":
+        # get kpi field value and area - average = value/area
+        integrateVariables = IntegrateVariables(Input=d)
+        average = getdatarange(integrateVariables, kpifield, kpiComp)[0]\
+                 / integrateVariables.CellData['Area'].GetRange()[0]
+    elif kpitype == "Volume" or kpitype == "Clip":
+        integrateVariables = IntegrateVariables(Input=d)
+        average = getdatarange(integrateVariables, kpifield, kpiComp)[0]\
+                  / integrateVariables.CellData['Volume'].GetRange()[0]
+
+    fp_csv_metrics.write(",".join([kpi, str(average), str(datarange[0]),str(datarange[1])]) + "\n")
+
+
+def extractStats(dataSource, kpi, kpifield, kpiComp, kpitype, fp_csv_metrics):
+    # If kpifield is a vector, add a calculater on top and extract the component of the vector
+    # as a scalar
+    
+    arrayInfo = dataSource.PointData[kpifield]
+    if isfldScalar(arrayInfo):
+        statVarName = kpifield
+    else:
+        # create a new 'Calculator'
+        statVarName = kpifield + '_' + kpiComp
+        calc1 = Calculator(Input=dataSource)
+        calc1.ResultArrayName = statVarName
+        if kpiComp == 'Magnitude':
+            calc1.Function = 'mag('+kpifield+')'
+        else:
+            calc1.Function = calc1.ResultArrayName
+        UpdatePipeline()
+        dataSource = calc1
+
+    # create a new 'Descriptive Statistics'
+    dStats = DescriptiveStatistics(Input=dataSource, ModelInput=None)
+    
+    dStats.VariablesofInterest = [statVarName]
+    UpdatePipeline()
+
+    dStatsDataInfo = dStats.GetDataInformation()
+    dStatsStatsInfo = dStatsDataInfo.GetRowDataInformation()
+    numStats = dStatsDataInfo.GetRowDataInformation().GetNumberOfArrays()
+
+    for iStat in range(numStats):
+        statName = dStatsStatsInfo.GetArrayInformation(iStat).GetName()
+        statValue = dStatsStatsInfo.GetArrayInformation(iStat).GetComponentRange(0)[0]
+        if  statName == 'Maximum':
+            maxaximum = statValue
+        elif statName == 'Minimum' :
+            minimum = statValue
+        elif statName == 'Mean':
+            average = statValue
+        elif statName == 'Standard Deviation':
+            stanDev = statValue
+
+    fp_csv_metrics.write(",".join([kpi, str(average), str(minimum), str(maxaximum), str(stanDev)]) + "\n")
+
+
 def correctfieldcomponent(datasource, metrichash):
     """
     Set "fieldComponent" to "Magnitude" if the component of vector/tensor fields is not given. For scalar fields set 
@@ -133,18 +176,21 @@ def correctfieldcomponent(datasource, metrichash):
 
 
 def getReaderTypeFromfileAddress(dataFileAddress):
-    if dataFileAddress.endswith('.exo'):
-        readerType = 'exo'
-    elif dataFileAddress.endswith('system/controlDict'):
+    if dataFileAddress.endswith('system/controlDict'):
         readerType = 'openFOAM'
     else:
-        print('Error: Reader type cannot be set. Please check data file address')
-        sys.exit(1)
+        try:
+            filename, file_extension = os.path.splitext(dataFileAddress)
+            readerType = file_extension.replace('.', '')
+        except:
+            print('Error: Reader type cannot be set. Please check data file address')
+            sys.exit(1)
 
     return readerType
 
 
 def readDataFile(dataFileAddress, dataarray):
+
     readerType = getReaderTypeFromfileAddress(dataFileAddress)
     if readerType == 'exo':
         # Read the results file : create a new 'ExodusIIReader'
@@ -166,6 +212,12 @@ def readDataFile(dataFileAddress, dataarray):
         dataReader.MeshRegions = ['internalMesh']
 
         dataReader.CellArrays = dataarray
+
+    elif readerType == 'vtk':
+        dataReader = LegacyVTKReader(FileNames=[dataFileAddress])
+        
+    elif readerType == 'stl':
+        dataReader = STLReader(FileNames=[dataFileAddress])
 
     return dataReader
 
@@ -201,7 +253,10 @@ def initRenderView (dataReader, viewSize, backgroundColor):
     # get active view
     renderView1 = GetActiveViewOrCreate('RenderView')
 
-    renderView1 = setFrame2latestTime(renderView1)
+    try:
+        renderView1 = setFrame2latestTime(renderView1)
+    except:
+        pass
 
     # set the view size
     renderView1.ViewSize = viewSize
@@ -218,31 +273,39 @@ def initRenderView (dataReader, viewSize, backgroundColor):
 
 def colorMetric(d, metrichash):
     display = GetDisplayProperties(d)
-
     kpifld = metrichash['field']
     kpifldcomp = metrichash['fieldComponent']
-
     ColorBy(display, ('POINTS', kpifld, kpifldcomp))
+
     Render()
     UpdateScalarBars()
     ctf = GetColorTransferFunction(kpifld)
-    ctf.ApplyPreset(metrichash["colorscale"], True)
-    if metrichash["invertcolor"] == "1":
-        ctf.InvertTransferFunction()
-    datarange = getdatarange(d, kpifld, kpifldcomp)
-
-    min = datarange[0]
-    max = datarange[1]
-    if metrichash["min"] != "auto" and metrichash["min"] != "":
-         min = float(metrichash["min"])
-    if metrichash["max"] != "auto" and metrichash["max"] != "":
-         max = float(metrichash["max"])
-    ctf.RescaleTransferFunction(min, max)
-    if int(metrichash["discretecolors"]) > 0:
-        ctf.Discretize = 1
-        ctf.NumberOfTableValues = int(metrichash["discretecolors"])
-    else:
-        ctf.Discretize = 0
+    try:
+        ctf.ApplyPreset(metrichash["colorscale"], True)
+    except:
+        pass
+    try:
+        if data_IO.str2bool(metrichash["invertcolor"]):
+            ctf.InvertTransferFunction()
+    except:
+        pass
+    
+    try:
+        datarange = getdatarange(d, kpifld, kpifldcomp)
+        min = datarange[0]
+        max = datarange[1]
+        if metrichash["min"] != "auto":
+             min = float(metrichash["min"])
+        if metrichash["max"] != "auto":
+             max = float(metrichash["max"])
+        ctf.RescaleTransferFunction(min, max)
+        if int(metrichash["discretecolors"]) > 0:
+            ctf.Discretize = 1
+            ctf.NumberOfTableValues = int(metrichash["discretecolors"])
+        else:
+            ctf.Discretize = 0
+    except:
+        pass
 
     renderView1 = GetActiveViewOrCreate('RenderView')
     ctfColorBar = GetScalarBar(ctf, renderView1)
@@ -288,15 +351,14 @@ def colorMetric(d, metrichash):
     #    display.SetScalarBarVisibility(renderView1, False)
 
 
-def createSlice(metrichash, dataReader, dataDisplay, isIndivImgs):
+def createSlice(metrichash, dataReader, dataDisplay):
     camera = GetActiveCamera()
     renderView1 = GetActiveViewOrCreate('RenderView')
 
     opacity=float(metrichash['opacity'])
     bodyopacity=float(metrichash['bodyopacity'])
-    if isIndivImgs:
-        dataDisplay.Opacity = bodyopacity
-        dataDisplay.ColorArrayName = ['POINTS', '']
+    dataDisplay.Opacity = bodyopacity
+    dataDisplay.ColorArrayName = ['POINTS', '']
     slicetype = "Plane"
     plane = metrichash['plane']
 
@@ -314,27 +376,40 @@ def createSlice(metrichash, dataReader, dataDisplay, isIndivImgs):
     return s
 
 
-def createStreamTracer(metrichash, data_reader, data_display, isIndivImages):
+def createStreamTracer(metrichash, data_reader, data_display):
     camera = GetActiveCamera()
     renderView1 = GetActiveViewOrCreate('RenderView')
 
     opacity = float(metrichash['opacity'])
     bodyopacity = float(metrichash['bodyopacity'])
-    if isIndivImages == True:
-        data_display.Opacity = bodyopacity
-        data_display.ColorArrayName = ['POINTS', '']
+    data_display.Opacity = bodyopacity
+    data_display.ColorArrayName = ['POINTS', '']
 
-    streamTracer = StreamTracer(Input=data_reader,
-                                 SeedType='High Resolution Line Source')
+    seedPosition = setviewposition(metrichash['position'], camera)
+    if metrichash['seedType'].lower() == 'line':
+        streamTracer = StreamTracer(Input=data_reader,
+                                    SeedType='High Resolution Line Source')
+        streamTracer.SeedType.Point1 = seedPosition[0:3]
+        streamTracer.SeedType.Point2 = seedPosition[3:6]
+        streamTracer.SeedType.Resolution = int(metrichash['resolution'])
+
+    elif metrichash['seedType'].lower() == 'plane':
+        # create a new 'Point Plane Interpolator' for seeding the stream lines
+        pointPlaneInterpolator = PointPlaneInterpolator(Input=data_reader, Source='Bounded Plane')
+        pointPlaneInterpolator.Source.Center = setviewposition(metrichash['center'], camera)
+        pointPlaneInterpolator.Source.BoundingBox = seedPosition
+        pointPlaneInterpolator.Source.Normal = planeNormalFromName(metrichash['plane'])
+        pointPlaneInterpolator.Source.Resolution = int(metrichash['resolution'])
+        UpdatePipeline()
+        streamTracer = StreamTracerWithCustomSource(Input=data_reader,
+                                                    SeedSource=pointPlaneInterpolator)
+
 
     kpifld = metrichash['field'] #!!!!!!!
     streamTracer.Vectors = ['POINTS', kpifld]
-    LinePoints = setviewposition(metrichash['position'], camera)
-    streamTracer.SeedType.Point1 = LinePoints[0:3]
-    streamTracer.SeedType.Point2 = LinePoints[3:6]
-    streamTracer.SeedType.Resolution = int(metrichash['resolution'])
+    
     streamTracer.IntegrationDirection = metrichash['integralDirection'] # 'BACKWARD', 'FORWARD' or  'BOTH'
-
+    streamTracer.IntegratorType = 'Runge-Kutta 4'
     # To do : Add a default value based on domain size ?
     streamTracer.MaximumStreamlineLength = float(metrichash['maxStreamLength'])
 
@@ -366,22 +441,20 @@ def createStreamTracer(metrichash, data_reader, data_display, isIndivImages):
     return tube
 
 
-def createClip(metrichash, data_reader, data_display, isIndivImages):
+def createClip(metrichash, data_reader, data_display):
     camera = GetActiveCamera()
     renderView1 = GetActiveViewOrCreate('RenderView')
 
     opacity = float(metrichash['opacity'])
     bodyopacity = float(metrichash['bodyopacity'])
-    if isIndivImages == True:
-        data_display.Opacity = bodyopacity
-        data_display.ColorArrayName = ['POINTS', '']
+    data_display.Opacity = bodyopacity
+    data_display.ColorArrayName = ['POINTS', '']
     cliptype = "Plane"
     plane = metrichash['plane']
     if 'invert' in metrichash.keys():
         invert = data_IO.str2bool(metrichash['invert'])
     else:
         invert = 0
-
 
     s = Clip(Input=data_reader)
     s.ClipType = cliptype
@@ -439,8 +512,19 @@ def createVolume(metrichash, data_reader):
     cDisplay.Opacity = 0.1
     return c
 
+def createBasic(metrichash, dataReader, dataDisplay):
+    camera = GetActiveCamera()
+    renderView1 = GetActiveViewOrCreate('RenderView')
+    bodyopacity=float(metrichash['bodyopacity'])
+    dataDisplay.Opacity = bodyopacity
 
-def plotLine(infile):
+    if not (metrichash['field'] == 'None'):
+        colorMetric(dataReader, metrichash)
+    else:
+        ColorBy(dataDisplay, ('POINTS', ''))
+    return dataReader
+
+def plotLine(infile, imageName) :
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
     warnings.filterwarnings('ignore')
@@ -459,12 +543,12 @@ def plotLine(infile):
 
     plt.xlabel('Point')
     plt.ylabel(header[1])
-    plt.title(infile.replace(".csv", "").replace("plot_", "") + ' Plot')
+    # plt.title(infile.replace(".csv", "").replace("plot_", "") + ' Plot')
     plt.grid(True)
-    plt.savefig(infile.replace(".csv", "") + ".png")
+    plt.savefig(imageName)
 
 
-def createLine(metrichash, kpi, data_reader, outputDir="."):
+def createLine(metrichash, data_reader, outputDir=".", caseNumber=""):
     resolution = int(metrichash['resolution'])
     try:
         image = metrichash['image']
@@ -493,8 +577,6 @@ def createLine(metrichash, kpi, data_reader, outputDir="."):
     point2=[float(point[3]),float(point[4]),float(point[5])]
     l = PlotOverLine(Input=data_reader, Source='High Resolution Line Source')
     l.PassPartialArrays = 1
-    #l.Source.Point1 = [-0.609570026397705, 1.2191989705897868, 1.5207239668816328]
-    #l.Source.Point2 = [3.044950008392334, 1.21919897058979, 1.5207239668816328]
     l.Source.Point1 = point1
     l.Source.Point2 = point2
     l.Source.Resolution = resolution
@@ -502,9 +584,8 @@ def createLine(metrichash, kpi, data_reader, outputDir="."):
     lDisplay.DiffuseColor = [1.0, 0.0, 0.0]
     lDisplay.Specular = 0
     lDisplay.Opacity = 1
-    
-    
-    # get the line data
+
+    # Get the line data
     pl = servermanager.Fetch(l)
 
     kpifld = metrichash['field']
@@ -512,7 +593,11 @@ def createLine(metrichash, kpi, data_reader, outputDir="."):
     if (image == "plot"):
         if not (os.path.exists(outputDir)):
             os.makedirs(outputDir)
-        csvFileName = outputDir + "/plot_" + kpi + ".csv"
+        if caseNumber:
+            metrichash['imageName'] = metrichash['imageName'].format(int(caseNumber))
+        imageFullPath = outputDir + '/' + metrichash['imageName']
+        imageName, imageExtension = os.path.splitext(imageFullPath)
+        csvFileName = imageName + ".csv"
         f=open(csvFileName,"w")
         f.write("point,"+kpifld)
         if kpiComp:
@@ -535,16 +620,19 @@ def createLine(metrichash, kpi, data_reader, outputDir="."):
             f.write(",".join([str(t), str(dataPoint)])+"\n")
     if image == "plot":
         f.close()
-        plotLine(csvFileName)
-    ave=sum/pl.GetPointData().GetArray(METRIC_INDEX).GetNumberOfTuples()
-    return l, ave
+        plotLine(csvFileName, imageFullPath)
+    ave = sum/pl.GetPointData().GetArray(METRIC_INDEX).GetNumberOfTuples()
+    return l
 
 
 def adjustCamera(view, renderView1, metrichash):
     camera=GetActiveCamera()
-    if view == "iso":
+    if view.startswith("iso"):
         camera.SetFocalPoint(0, 0, 0)
-        camera.SetPosition(0, -1, 0)
+        if (view == "iso-flipped"):
+            camera.SetPosition(0, 1, 0)
+        else:
+            camera.SetPosition(0, -1, 0)
         renderView1.ResetCamera()
         # adjust for scale margin
         camera.SetFocalPoint(camera.GetFocalPoint()[0],camera.GetFocalPoint()[1],camera.GetFocalPoint()[2]-0.25)
@@ -586,7 +674,7 @@ def adjustCamera(view, renderView1, metrichash):
         renderView1.CameraParallelProjection = int(metrichash["CameraParallelProjection"])
 
 
-def makeAnimation(outputDir, kpi, magnification, deleteFrames=True):
+def makeAnimation(outputDir, kpi, magnification, animationName, deleteFrames=True):
     animationFramesDir = outputDir + '/animFrames'
     if not (os.path.exists(animationFramesDir)):
         os.makedirs(animationFramesDir)
@@ -594,46 +682,57 @@ def makeAnimation(outputDir, kpi, magnification, deleteFrames=True):
     WriteAnimation(animationFramesDir + "/out_" + kpi + ".png", Magnification=magnification, FrameRate=15.0,
                    Compression=False)
 
-    subprocess.call(["convert", "-delay", "15",  "-loop",  "0", animationFramesDir + "/out_" + kpi + ".*.png",
-                     outputDir + "/out_" + kpi + ".gif"])
+    subprocess.call(["convert", "-delay", "15",  "-loop",  "0",
+                     animationFramesDir + "/out_" + kpi + ".*.png",
+                     outputDir + "/" + animationName])
 
     if deleteFrames:
         shutil.rmtree(animationFramesDir)
 
 
-def exportx3d(outputDir,kpi, metricObj, dataReader):
+def exportx3d(outputDir,kpi, metricObj, dataReader, renderBody, blenderContext):
 
     blenderFramesDir = outputDir + kpi + '_blender'
 
     if not (os.path.exists(blenderFramesDir)):
         os.makedirs(blenderFramesDir)
 
-    TimeSteps = getTimeSteps()
-
-
-    firstTimeStep = TimeSteps[0]
-
-    renderView1 = GetActiveViewOrCreate('RenderView')
-
-    renderView1.ViewTime = firstTimeStep
-
-    for num, time in enumerate(TimeSteps):
-        #name = blenderFramesDir + str(num) + '.x3d'
-        name_body = blenderFramesDir + '/' + str(num) + '_body.x3d'
-        name_solo = blenderFramesDir + '/' + str(num) + '_solo.x3d'
-
-        Show(metricObj, renderView1)
-        Hide(dataReader, renderView1)
-        ExportView(name_solo, view=renderView1)
-
+    try:
+        TimeSteps = getTimeSteps()
+        firstTimeStep = TimeSteps[0]
+        renderView1 = GetActiveViewOrCreate('RenderView')
+        renderView1.ViewTime = firstTimeStep
+        for num, time in enumerate(TimeSteps):
+            name_solo = blenderFramesDir + '/' + str(num) + '_solo.x3d'
+            Show(metricObj, renderView1)
+            Hide(dataReader, renderView1)
+            ExportView(name_solo, view=renderView1)
+            if renderBody == "true":
+                name_body = blenderFramesDir + '/' + str(num) + '_body.x3d'
+                Show(dataReader, renderView1)
+                Hide(metricObj, renderView1)
+                ExportView(name_body, view=renderView1)
+            animationScene1 = GetAnimationScene()
+            animationScene1.GoToNext()
+    except:
+        renderView1 = GetActiveViewOrCreate('RenderView')
+        name_body = blenderFramesDir + '/' + 'body.x3d'
         Show(dataReader, renderView1)
-        Hide(metricObj, renderView1)
         ExportView(name_body, view=renderView1)
-
-        animationScene1 = GetAnimationScene()
-
-        animationScene1.GoToNext()
+        
+    if blenderContext != None and len(blenderContext) > 0:
+        for i in blenderContext:
+            dataReaderTmp = readDataFile(i, None)
+            renderViewTmp = CreateView('RenderView')
+            readerDisplayTmp = Show(dataReaderTmp, renderViewTmp)
+            name_body = blenderFramesDir + '/' + os.path.splitext(os.path.basename(i))[0] + '.x3d'
+            ExportView(name_body, view=renderViewTmp)
 
     # tar the directory
     data_IO.tarDirectory(blenderFramesDir + ".tar", blenderFramesDir)
     shutil.rmtree(blenderFramesDir)
+
+def saveSTLfile(renderView,filename,magnification,quality):
+    adjustCamera("iso", renderView, None, "false")
+    SaveScreenshot(filename, magnification=magnification, quality=quality)
+    
