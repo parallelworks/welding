@@ -18,4 +18,4 @@ sim_totalTime;0.5
 sim_dt;0.1
 highResWidth;3.0
 meshScale;1.0
-
+highResMeshScale;0.2
