@@ -7,7 +7,7 @@ fErr=$5
 
 
 if [ "$embeddedDocker" = true ] ; then
-    run_command="docker run --rm -i -v `pwd`:/scratch -w /scratch -u 0:0 avidalto/calculix:v11" 
+    run_command="docker run --rm -i -v `pwd`:/scratch -w /scratch -u 0:0 avidalto/calculix:v12" 
 else
 	run_command=""
 fi
@@ -46,7 +46,7 @@ prefbdFileName=$(basename $prefbdFile)
 allinoneFileName=$(basename $allinoneFile)
 
 if [ "$embeddedDocker" = true ] ; then
-    run_command="docker run --rm -i -v `pwd`:/scratch -w /scratch -u 0:0 avidalto/calculix:v11" 
+    run_command="docker run --rm -i -v `pwd`:/scratch -w /scratch -u 0:0 avidalto/calculix:v12" 
 else
 	run_command=""
 fi
