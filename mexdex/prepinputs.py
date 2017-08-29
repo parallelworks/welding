@@ -41,7 +41,6 @@ parser.set_defaults(withParamType=True)
 
 
 args = parser.parse_args()
-print(args)
 casesListFile = args.caseListFile
 paramsFile = args.sweepRunFile
 SR_valsdelimiter = data_IO.correctDelimiterInputStrs(args.SR_valueDelimiter)

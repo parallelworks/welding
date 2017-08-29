@@ -32,7 +32,6 @@ file getCcxInpScript        <"utils/writeCCXinpFile_beadOnPlate.py">;
 file writeFortranFileScript <"utils/writeDFluxFile.py">;
 file materialLibFile        <"inputs/materialLib.mat">;  # Also need to change the ccx input file changing the name
 file metrics2extract        <"inputs/beadOnPlateKPI_short.json">;
-file outputsList4DE         <"DEoutputParams.txt">;
 
 file utils[] 		        <filesys_mapper;location="utils", pattern="?*.*">;
 file mexdex[] 		        <filesys_mapper;location="mexdex", pattern="?*.*">;
@@ -46,9 +45,9 @@ file mexdex[] 		        <filesys_mapper;location="mexdex", pattern="?*.*">;
 
 # ------ APP DEFINITIONS --------------------#
 
-app (file cases, file[] simFileParams) writeCaseParamFiles (file sweepParams, string simFilesDir, file[] mexdex, file[] utils) {
-    python2 "mexdex/prepinputs.py" "--SR_valueDelimiter" " " "--SR_paramsDelimiter" "\n" "--noParamTag" "--CL_paramValueDelimiter" "="  filename(sweepParams) filename(cases);
-	python "utils/writeSimParamFiles.py" filename(cases) simFilesDir "caseParamFile";
+app (file cases, file[] simFileParams) writeCaseParamFiles (file sweepParams, string simFilesDir, file[] mexdex) {
+    bash "mexdex/runPrepinputs.py"  filename(sweepParams) filename(cases);
+	python "mexdex/writeSimParamFiles.py" filename(cases) simFilesDir "caseParamFile";
 }
 
 app (file fmesh, file ferr, file fout) makeMesh (file meshScript, int caseindex, file utils[], 
@@ -73,12 +72,12 @@ app (file MetricsOutput, file[] fpngs, file fOut, file ferr, file fsol)
     bashRunSim "utils/runSim.sh" filename(ccxBin)  filename(fInp) filename(matLibFile) 
                 stderr=filename(ferr) stdout=filename(fOut);
     bashPVExtract  "mexdex/PVExtract.sh" filename(fInp) filename(metrics2extract) extractOutDir
-         filename(MetricsOutput) stderr=filename(ferr) stdout=filename(fOut);
+         filename(MetricsOutput); 
 }
 
-app (file outcsv, file outhtml, file so, file se) designExplorer (string runPath, file caselist, file metrics2extract, string pngOutDirRoot, string caseDirRoot, file[] MetricsFiles, file outputsList4DE, file mexdex[])
+app (file outcsv, file outhtml, file so, file se) designExplorer (string runPath, file caselist, file metrics2extract, string pngOutDirRoot, string caseDirRoot, file[] MetricsFiles, file mexdex[])
 {
-  bash "mexdex/addDesignExplorer.sh" filename(outcsv) filename(outhtml) runPath  filename(caselist) filename(metrics2extract) pngOutDirRoot caseDirRoot filename(outputsList4DE) stdout=filename(so) stderr=filename(se);
+  bash "mexdex/addDesignExplorer.sh" filename(outcsv) filename(outhtml) runPath  filename(caselist) filename(metrics2extract) pngOutDirRoot caseDirRoot stdout=filename(so) stderr=filename(se);
 }
 
  
@@ -87,7 +86,7 @@ app (file outcsv, file outhtml, file so, file se) designExplorer (string runPath
 # Read parameters from the sweepParams file and write to case files
 file caseFile 	            <strcat(outDir,"cases.list")>;
 file[] simFileParams        <filesys_mapper; location = simFilesDir>;
-(caseFile, simFileParams) = writeCaseParamFiles(fsweepParams, simFilesDir, mexdex, utils);
+(caseFile, simFileParams) = writeCaseParamFiles(fsweepParams, simFilesDir, mexdex);
 
 
 file[] fmeshes;
@@ -141,4 +140,4 @@ file fDEout       <strcat(logsDir, "DE.out")>;
 file fDEerr       <strcat(errorsDir, "DE.err")>;
 
 
-(outcsv,outhtml,fDEout, fDEerr) = designExplorer(runPath, caseFile, metrics2extract, pngOutDirRoot, caseDirRoot, MetricsFiles, outputsList4DE, mexdex);
+(outcsv,outhtml,fDEout, fDEerr) = designExplorer(runPath, caseFile, metrics2extract, pngOutDirRoot, caseDirRoot, MetricsFiles, mexdex);

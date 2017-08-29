@@ -1,1 +1,0 @@
-sliceNT(ave),clipT(ave)

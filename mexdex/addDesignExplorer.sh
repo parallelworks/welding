@@ -8,7 +8,6 @@ caseslistFile=$4
 metrics_json=$5
 pngOutDirRoot=$6
 caseDirRoot=$7
-outputsList4DE=$8
 
 colorby="sliceNT_ave"
 
@@ -35,8 +34,7 @@ fi
 python      mexdex/writeDesignExplorerCsv.py \
 	--casesList_paramValueDelimiter "=" \
 	--imagesDirectory $pngOutDirRoot{:d} \
-	--includeOutputParamsFile $outputsList4DE \
-	--MECsvPathTemplate  $caseDirRoot{:d}/metrics.csv \
+	--MEXCsvPathTemplate  $caseDirRoot{:d}/metrics.csv \
 	$caseslistFile $metrics_json $basedir $outcsv
 
 

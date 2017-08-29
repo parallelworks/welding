@@ -227,8 +227,9 @@ site.local {
 	}
 	
 	workDirectory: "swiftwork"
-	scratch: "/home/marmar/scratch/parallelWorks/weldingProject/welding-alvaro/jobs" 
-	
+	scratch: "/home/marmar/Dropbox/parallelWorks/weldingProject/welding-github/jobs"
+    initialParallelTasks: 5
+   	maxParallelTasks:5
 	app.ALL {
         # If running without embedded dockers, uncomment and set the paths below:
 	    # env.SALOMEPATH: "/core/SALOME-8.2.0-UB14.04/"

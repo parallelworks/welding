@@ -1,5 +1,7 @@
 import data_IO
 import json
+import warnings
+
 from collections import OrderedDict
 
 
@@ -21,13 +23,47 @@ def setKPIFieldDefaults(metrichash, kpi, caseNumber=""):
 
     if not ('IsParaviewMetric' in metrichash):
         metrichash['IsParaviewMetric'] = 'True'
-    # If not a Paraview Metric, don't need to do anything
+
+    if not ('DEXoutputFlag' in metrichash):
+        if data_IO.str2bool(metrichash['IsParaviewMetric']):
+            metrichash['DEXoutputFlag'] = 'all'
+        else:
+            metrichash['DEXoutputFlag'] = ''
+
+    # If not a Paraview Metric, make sure the information for extracting
+    # data/images from a generic file is provided.
     if not data_IO.str2bool(metrichash['IsParaviewMetric']):
+        if metrichash['DEXoutputFlag'].lower() == "image":
+            if not ('imageName' in metrichash):
+                metrichash['imageName'] = "out_" + kpi + ".png"
+
+        if metrichash['DEXoutputFlag'].lower() == "animation":
+            if not ('animation' in metrichash):
+                metrichash['animation'] = 'True'
+            if not data_IO.str2bool(metrichash['animation']):
+                warnings.warn('Setting {}.animation to True'.format(kpi))
+                metrichash['animation'] = 'True'
+            if not ('animationName' in metrichash):
+                metrichash['animationName'] = "out_" + kpi + ".gif"
+        else:
+            metrichash['animation'] = 'False'
+
+        if not(metrichash['DEXoutputFlag'].lower() in {"none", "image", "animation"}):
+            if not ('resultFile' in metrichash):
+                warningMsg = 'Please provide resultFile for {}. Setting ' \
+                             '{}.DEXoutputFlag to "none".'.format(kpi, kpi)
+                warnings.warn(warningMsg)
+                metrichash['DEXoutputFlag'] = 'none'
+            if not ("delimiter" in metrichash):
+                metrichash["delimiter"] = ""
+            if not ("locationInFile" in metrichash):
+                metrichash["locationInFile"] = "1"
         return metrichash
 
     # Set default image properties
     if not ('image' in metrichash):
         metrichash['image'] = 'None'
+        metrichash['imageName'] = 'None'
     if not ('bodyopacity' in metrichash):
         metrichash['bodyopacity'] = "0.3"
     if not ('min' in metrichash):
@@ -42,7 +78,8 @@ def setKPIFieldDefaults(metrichash, kpi, caseNumber=""):
         metrichash['invertcolor'] = 'False'
     if not ('opacity' in metrichash):
         metrichash['opacity'] = "1"
-    # Set image number
+
+    # Set image name
     if not('image' == 'None'):
         if not ('imageName' in metrichash):
             if metrichash['image'] == "plot":
@@ -60,6 +97,9 @@ def setKPIFieldDefaults(metrichash, kpi, caseNumber=""):
             metrichash['extractStats'] = 'False'
         else:
             metrichash['extractStats'] = 'True'
+
+    if not data_IO.str2bool(metrichash['extractStats']):
+        metrichash['DEXoutputFlag'] = 'none'
 
     if not ('animation' in metrichash):
         metrichash['animation'] = 'False'
