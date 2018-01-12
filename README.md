@@ -1,28 +1,34 @@
-# To convert to md use this command (org export doesn't work with nested lists:)
-# pandoc --from org --to markdown_github  Readme0.org -s -o Readme0.md
-#+OPTIONS: toc:nil
-#+OPTIONS: ^:nil
+A parametric sweep workflow for a welding case
+==============================================
 
-* A parametric sweep workflow for a welding case
-  This workflow implements  a parameter sweep on a parametric model of a 
-  thermomechanical simulation of a bead-on-plate welding process.
-  
-  In this workflow:
-   - The geometry and mesh is generated using [[http://www.salome-platform.org/][Salome platform]] (version 8.2.0)
-   - The thrmomechanical simulation of the welding process is performed with the open source [[http://www.dhondt.de/][CalculiX FEA solver]] (version 2.12)
-   - Post-processing is perfromed using [[https://www.paraview.org/][ParaView]]
-  
-  The workflow is implemented with [[http://swift-lang.org/main/][Swift]].
+This workflow implements a parameter sweep on a parametric model of a thermomechanical simulation of a bead-on-plate welding process.
 
-** Required software
-   - The required software for executing this workflow are dockerized.
-   - Executing the workflow requires installing Swift (see [[http://swift-lang.org/tutorials/localhost/tutorial.html#_swift_installation]]), and docker ([[https://docs.docker.com/engine/installation/]])
-** Instructions for running the workflow
-   To run the workflow, run the following command from the main directory:
-   #+BEGIN_EXAMPLE
-   swift main.swift -sweepParamFile=inputs/sweepParams_fast.run  
-   #+END_EXAMPLE
-   The =sweepParamFile= specifies the file with the parameter values for running the workflow. More examples are in the directory =inputs/=
-** Authors
-   The workflow is created by [[https://www.parallelworks.com/][Parallel Works]]
+In this workflow:
 
+-   The geometry and mesh is generated using [Salome platform](http://www.salome-platform.org/) (version 8.2.0)
+-   The thrmomechanical simulation of the welding process is performed with the open source [CalculiX FEA solver](http://www.dhondt.de/) (version 2.12)
+-   Post-processing is perfromed using [ParaView](https://www.paraview.org/)
+
+The workflow is implemented with [Swift](http://swift-lang.org/main/).
+
+Required software
+-----------------
+
+-   The required software for executing this workflow are dockerized.
+-   Executing the workflow requires installing Swift (see <http://swift-lang.org/tutorials/localhost/tutorial.html#_swift_installation>), and docker (<https://docs.docker.com/engine/installation/>)
+
+Instructions for running the workflow
+-------------------------------------
+
+To run the workflow, run the following command from the main directory:
+
+``` example
+swift main.swift -sweepParamFile=inputs/sweepParams_fast.run  
+```
+
+The `sweepParamFile` specifies the file with the parameter values for running the workflow. More examples are in the directory `inputs/`
+
+Authors
+-------
+
+The workflow is created by [Parallel Works](https://www.parallelworks.com/)
