@@ -7,7 +7,7 @@ In this workflow:
 
 -   The geometry and mesh is generated using [Salome platform](http://www.salome-platform.org/) (version 8.2.0)
 -   The thrmomechanical simulation of the welding process is performed with the open source [CalculiX FEA solver](http://www.dhondt.de/) (version 2.12)
--   Post-processing is performed using [ParaView](https://www.paraview.org/) and a python library developed by Parallel Works for automated generation of output images and [metrics extraction](https://github.com/parallelworks/MetricExtraction).
+-   Post-processing is performed using [ParaView](https://www.paraview.org/) and a [python library](https://github.com/parallelworks/MetricExtraction) developed by Parallel Works for automated generation of output images and metrics extraction.
 
 The workflow is implemented with [Swift](http://swift-lang.org/main/).
 
