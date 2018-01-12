@@ -14,7 +14,7 @@ The workflow is implemented with [Swift](http://swift-lang.org/main/).
 Required software
 -----------------
 
--   The required software for executing this workflow are dockerized.
+-   The required software for executing this workflow are dockerized (see <https://hub.docker.com/u/parallelworks/?page=1> and <https://github.com/parallelworks/Dockerfiles>).
 -   Executing the workflow requires installing Swift (see <http://swift-lang.org/tutorials/localhost/tutorial.html#_swift_installation>), and docker (<https://docs.docker.com/engine/installation/>)
 
 Instructions for running the workflow
